@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Page,
   Layout,
@@ -8,10 +8,45 @@ import {
   Button,
   Box,
   Grid,
+  Modal,
 } from "@shopify/polaris";
 import { TitleBar } from "@shopify/app-bridge-react";
 
 export default function HomePage() {
+  const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+  const [products, setProducts] = useState([]);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(false);
+  const [productModalError, setProductModalError] = useState("");
+
+  const handleCloseProductModal = () => {
+    setIsProductModalOpen(false);
+    setProducts([]);
+    setProductModalError("");
+  };
+
+  const handleOpenProductModal = async () => {
+    setIsProductModalOpen(true);
+    setIsLoadingProducts(true);
+    setProductModalError("");
+
+    try {
+      const response = await fetch("/api/products/list");
+      if (!response.ok) {
+        throw new Error("Unable to load products");
+      }
+      const data = await response.json();
+      setProducts(data.products || []);
+    } catch (error) {
+      setProductModalError(error.message || "Unable to load products");
+    } finally {
+      setIsLoadingProducts(false);
+    }
+  };
+
+  const handleProductClick = (productId) => {
+    alert(`Selected Product ID: ${productId}`);
+  };
+
   return (
     <Page>
       <TitleBar title="Variance App" />
@@ -151,7 +186,12 @@ export default function HomePage() {
               <Text as="h3" variant="headingMd" style={{ margin: "0", padding: "12px 0", fontWeight: "700", color: "#1f2937" }}>
                 Add options to a single product:
               </Text>
-              <Button primary style={{ minWidth: "180px", backgroundColor: "#111827", borderColor: "#111827", padding: "0 24px" }}>
+              <Button
+                primary
+                size="slim"
+                onClick={handleOpenProductModal}
+                style={{ minWidth: "140px", backgroundColor: "#111827", borderColor: "#111827", padding: "0 18px" }}
+              >
                 Choose Product
               </Button>
               <Text variant="bodySm" tone="subdued" style={{ margin: "0 auto", maxWidth: "520px", lineHeight: "1.6", padding: "8px 0" }}>
@@ -160,6 +200,99 @@ export default function HomePage() {
             </Box>
           </Card>
         </Layout.Section>
+
+        <Modal
+          open={isProductModalOpen}
+          onClose={handleCloseProductModal}
+          title="Choose Product"
+          primaryAction={{ content: "Close", onAction: handleCloseProductModal }}
+          large
+        >
+          <Modal.Section>
+            {isLoadingProducts ? (
+              <Box padding="4" style={{ textAlign: "center" }}>
+                <Text>Loading products...</Text>
+              </Box>
+            ) : productModalError ? (
+              <Text as="p" color="critical">{productModalError}</Text>
+            ) : products.length === 0 ? (
+              <Text as="p">No products found.</Text>
+            ) : (
+              <Box style={{ maxHeight: "400px", overflowY: "auto" }}>
+                <Grid>
+                  {products.map((product) => (
+                    <Grid.Cell key={product.id} columnSpan={{ xs: 6, sm: 6, md: 4, lg: 3, xl: 3 }}>
+                      <Box
+                        onClick={() => handleProductClick(product.id)}
+                        style={{
+                          cursor: "pointer",
+                          borderRadius: "8px",
+                          overflow: "hidden",
+                          border: "1px solid #e5e7eb",
+                          transition: "all 0.2s ease",
+                          backgroundColor: "#ffffff",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.1)";
+                          e.currentTarget.style.transform = "translateY(-2px)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.boxShadow = "none";
+                          e.currentTarget.style.transform = "translateY(0)";
+                        }}
+                      >
+                        {product.featuredImage ? (
+                          <Box style={{ marginBottom: "12px", overflow: "hidden", borderRadius: "6px" }}>
+                            <img
+                              src={product.featuredImage.url}
+                              alt={product.title}
+                              style={{
+                                width: "100%",
+                                height: "150px",
+                                objectFit: "cover",
+                                borderRadius: "6px",
+                              }}
+                            />
+                          </Box>
+                        ) : (
+                          <Box
+                            style={{
+                              marginBottom: "12px",
+                              width: "100%",
+                              height: "150px",
+                              backgroundColor: "#f3f4f6",
+                              borderRadius: "6px",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
+                          >
+                            <Text color="subdued">No Image</Text>
+                          </Box>
+                        )}
+                        <Box padding="3">
+                          <Text as="h3" variant="bodyMd" style={{ fontWeight: "700", color: "#1f2937", margin: "0 0 8px 0" }}>
+                            {product.title}
+                          </Text>
+                          <Text variant="bodySm" color="subdued" style={{ fontSize: "12px" }}>
+                            ID: {product.id}
+                          </Text>
+                        </Box>
+                      </Box>
+                    </Grid.Cell>
+                  ))}
+                </Grid>
+              </Box>
+            )}
+            {products.length > 0 && (
+              <Box padding="4" style={{ textAlign: "center", marginTop: "16px" }}>
+                <Text variant="bodySm" tone="subdued">
+                  {products.length} product{products.length === 1 ? "" : "s"} loaded
+                </Text>
+              </Box>
+            )}
+          </Modal.Section>
+        </Modal>
 
         {/* Recently Saved Products */}
         <Layout.Section>
