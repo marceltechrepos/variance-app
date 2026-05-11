@@ -97,7 +97,7 @@ import React from 'react'
 
 const index = () => {
   return (
-    <div>Hello World</div>
+    <div>Hello World...</div>
   )
 }
 
