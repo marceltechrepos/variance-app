@@ -17,11 +17,13 @@ export default function HomePage() {
   const [products, setProducts] = useState([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(false);
   const [productModalError, setProductModalError] = useState("");
+  const [selectedProductId, setSelectedProductId] = useState(null);
 
   const handleCloseProductModal = () => {
     setIsProductModalOpen(false);
     setProducts([]);
     setProductModalError("");
+    setSelectedProductId(null);
   };
 
   const handleOpenProductModal = async () => {
@@ -43,8 +45,14 @@ export default function HomePage() {
     }
   };
 
-  const handleProductClick = (productId) => {
-    alert(`Selected Product ID: ${productId}`);
+  const handleProductSelection = (productId) => {
+    setSelectedProductId(productId);
+  };
+
+  const handleContinue = () => {
+    if (selectedProductId) {
+      alert(selectedProductId);
+    }
   };
 
   return (
@@ -205,7 +213,6 @@ export default function HomePage() {
           open={isProductModalOpen}
           onClose={handleCloseProductModal}
           title="Choose Product"
-          primaryAction={{ content: "Close", onAction: handleCloseProductModal }}
           large
         >
           <Modal.Section>
@@ -219,78 +226,88 @@ export default function HomePage() {
               <Text as="p">No products found.</Text>
             ) : (
               <Box style={{ maxHeight: "400px", overflowY: "auto" }}>
-                <Grid>
-                  {products.map((product) => (
-                    <Grid.Cell key={product.id} columnSpan={{ xs: 6, sm: 6, md: 4, lg: 3, xl: 3 }}>
-                      <Box
-                        onClick={() => handleProductClick(product.id)}
+                <Box style={{ border: "1px solid #e5e7eb", borderRadius: "8px", overflow: "hidden" }}>
+                  {products.map((product, index) => (
+                    <Box
+                      key={product.id}
+                      onClick={() => handleProductSelection(product.id)}
+                      style={{
+                        cursor: "pointer",
+                        borderBottom: index < products.length - 1 ? "1px solid #e5e7eb" : "none",
+                        backgroundColor: selectedProductId === product.id ? "#eff6ff" : "#ffffff",
+                        transition: "background-color 0.2s ease",
+                        padding: "16px",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "12px",
+                      }}
+                    >
+                      <input
+                        type="radio"
+                        name="productSelection"
+                        checked={selectedProductId === product.id}
+                        onChange={() => handleProductSelection(product.id)}
                         style={{
+                          width: "18px",
+                          height: "18px",
                           cursor: "pointer",
-                          borderRadius: "8px",
-                          overflow: "hidden",
-                          border: "1px solid #e5e7eb",
-                          transition: "all 0.2s ease",
-                          backgroundColor: "#ffffff",
                         }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.1)";
-                          e.currentTarget.style.transform = "translateY(-2px)";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.boxShadow = "none";
-                          e.currentTarget.style.transform = "translateY(0)";
-                        }}
-                      >
+                      />
+                      <Box style={{ flex: 1, display: "flex", alignItems: "center", gap: "12px" }}>
                         {product.featuredImage ? (
-                          <Box style={{ marginBottom: "12px", overflow: "hidden", borderRadius: "6px" }}>
-                            <img
-                              src={product.featuredImage.url}
-                              alt={product.title}
-                              style={{
-                                width: "100%",
-                                height: "150px",
-                                objectFit: "cover",
-                                borderRadius: "6px",
-                              }}
-                            />
-                          </Box>
+                          <img
+                            src={product.featuredImage.url}
+                            alt={product.title}
+                            style={{
+                              width: "48px",
+                              height: "48px",
+                              objectFit: "cover",
+                              borderRadius: "4px",
+                              border: "1px solid #e5e7eb",
+                            }}
+                          />
                         ) : (
                           <Box
                             style={{
-                              marginBottom: "12px",
-                              width: "100%",
-                              height: "150px",
+                              width: "48px",
+                              height: "48px",
                               backgroundColor: "#f3f4f6",
-                              borderRadius: "6px",
+                              borderRadius: "4px",
+                              border: "1px solid #e5e7eb",
                               display: "flex",
                               alignItems: "center",
                               justifyContent: "center",
                             }}
                           >
-                            <Text color="subdued">No Image</Text>
+                            <Text variant="bodySm" color="subdued">No Image</Text>
                           </Box>
                         )}
-                        <Box padding="3">
-                          <Text as="h3" variant="bodyMd" style={{ fontWeight: "700", color: "#1f2937", margin: "0 0 8px 0" }}>
+                        <Box style={{ flex: 1 }}>
+                          <Text as="h3" variant="bodyMd" style={{ fontWeight: "600", color: "#1f2937", margin: "0 0 4px 0" }}>
                             {product.title}
                           </Text>
-                          <Text variant="bodySm" color="subdued" style={{ fontSize: "12px" }}>
+                          {/* <Text variant="bodySm" color="subdued" style={{ fontSize: "12px" }}>
                             ID: {product.id}
-                          </Text>
+                          </Text> */}
                         </Box>
                       </Box>
-                    </Grid.Cell>
+                    </Box>
                   ))}
-                </Grid>
+                </Box>
               </Box>
             )}
-            {products.length > 0 && (
-              <Box padding="4" style={{ textAlign: "center", marginTop: "16px" }}>
-                <Text variant="bodySm" tone="subdued">
-                  {products.length} product{products.length === 1 ? "" : "s"} loaded
-                </Text>
-              </Box>
-            )}
+          </Modal.Section>
+          <Modal.Section>
+            <Box style={{ display: "flex", justifyContent: "flex-start", gap: "12px" }}>
+              <Button onClick={handleCloseProductModal}>Close</Button>
+              <Button
+                primary
+                onClick={handleContinue}
+                disabled={!selectedProductId}
+              >
+                Continue
+              </Button>
+            </Box>
           </Modal.Section>
         </Modal>
 
