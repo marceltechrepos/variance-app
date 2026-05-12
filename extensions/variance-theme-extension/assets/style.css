@@ -1,0 +1,263 @@
+/* Variance Product Options Styles - Polaris Inspired */
+
+.variance-product-options {
+  margin: 16px 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.option-wrapper {
+  margin-bottom: 16px;
+  padding: 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background-color: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.option-title {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 8px;
+  color: #2c2d2e;
+  line-height: 1.4;
+}
+
+.option-content {
+  margin-top: 8px;
+}
+
+/* Dropdown */
+.option-dropdown-select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 14px;
+  background-color: #ffffff;
+  color: #2c2d2e;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.option-dropdown-select:focus {
+  outline: none;
+  border-color: #008060;
+  box-shadow: 0 0 0 2px rgba(0, 128, 96, 0.2);
+}
+
+/* Buttons */
+.option-buttons-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.option-button {
+  padding: 10px 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background-color: #ffffff;
+  color: #2c2d2e;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.2;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.option-button:hover {
+  background-color: #f6f6f7;
+  border-color: #b0b7bf;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.option-button:focus {
+  outline: none;
+  border-color: #008060;
+  box-shadow: 0 0 0 2px rgba(0, 128, 96, 0.2);
+}
+
+.option-button.active {
+  background-color: #008060;
+  color: #ffffff;
+  border-color: #008060;
+  box-shadow: 0 1px 3px rgba(0, 128, 96, 0.3);
+}
+
+.option-button.active:hover {
+  background-color: #006e52;
+  border-color: #006e52;
+}
+
+/* Text Input */
+.option-text-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 14px;
+  background-color: #ffffff;
+  color: #2c2d2e;
+  box-sizing: border-box;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.option-text-input:focus {
+  outline: none;
+  border-color: #008060;
+  box-shadow: 0 0 0 2px rgba(0, 128, 96, 0.2);
+}
+
+/* Long Text (Textarea) */
+.option-long-text-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 14px;
+  background-color: #ffffff;
+  color: #2c2d2e;
+  min-height: 80px;
+  box-sizing: border-box;
+  resize: vertical;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.option-long-text-input:focus {
+  outline: none;
+  border-color: #008060;
+  box-shadow: 0 0 0 2px rgba(0, 128, 96, 0.2);
+}
+
+/* File Upload */
+.option-file-input {
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 14px;
+  background-color: #ffffff;
+  color: #2c2d2e;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.option-file-input:focus {
+  outline: none;
+  border-color: #008060;
+  box-shadow: 0 0 0 2px rgba(0, 128, 96, 0.2);
+}
+
+/* Radio Buttons */
+.option-radio-group {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.option-radio-label {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-size: 14px;
+  color: #2c2d2e;
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 6px;
+  transition: background-color 0.2s ease;
+}
+
+.option-radio-label:hover {
+  background-color: #f6f6f7;
+}
+
+.option-radio-input {
+  margin-right: 8px;
+  accent-color: #008060;
+}
+
+.option-radio-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 128, 96, 0.2);
+}
+
+/* Checkboxes */
+.option-checkboxes-group {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.option-checkbox-label {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-size: 14px;
+  color: #2c2d2e;
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 6px;
+  transition: background-color 0.2s ease;
+}
+
+.option-checkbox-label:hover {
+  background-color: #f6f6f7;
+}
+
+.option-checkbox-input {
+  margin-right: 8px;
+  accent-color: #008060;
+}
+
+.option-checkbox-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 128, 96, 0.2);
+}
+
+/* Instructions */
+.option-instructions-text {
+  font-size: 14px;
+  line-height: 1.5;
+  color: #5c5f62;
+  margin: 0;
+}
+
+/* Placeholders */
+.option-color-swatches-placeholder,
+.option-image-swatches-placeholder,
+.option-grid-placeholder,
+.option-default-placeholder {
+  padding: 12px;
+  background-color: #fff8e1;
+  border: 1px solid #f5c518;
+  border-radius: 4px;
+  color: #8c6d1f;
+  font-size: 14px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .option-wrapper {
+    padding: 12px;
+  }
+
+  .option-buttons-group {
+    flex-direction: column;
+  }
+
+  .option-button {
+    width: 100%;
+  }
+
+  .option-radio-group,
+  .option-checkboxes-group {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .option-radio-label,
+  .option-checkbox-label {
+    padding: 6px 8px;
+  }
+}
