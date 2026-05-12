@@ -10,7 +10,8 @@ import PrivacyWebhookHandlers from "./privacy.js";
 import connectDB from "./Utils/db.js";
 import ProductRoute from "./Routes/productRoutes.js";
 import virtualOptionsRoutes from "./Routes/virtualOptionsRoutes.js";
-
+import uploadImageRoute from "./Routes/uploadRoutes.js";
+import fileUpload from "express-fileupload";
 
 const PORT = parseInt(
   process.env.BACKEND_PORT || process.env.PORT || "3000",
@@ -40,11 +41,15 @@ app.post(
 // also add a proxy rule for them in web/frontend/vite.config.js
 
 app.use("/api/*", shopify.validateAuthenticatedSession());
+app.use(fileUpload({
+  useTempFiles: true,
+  tempFileDir: '/tmp/'
+}));
 
 app.use(express.json());
 connectDB();
 
-const routes = [ProductRoute, virtualOptionsRoutes]
+const routes = [ProductRoute, virtualOptionsRoutes, uploadImageRoute]
 
 routes.forEach((route) => {
   app.use("/api", route)

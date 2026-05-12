@@ -14,6 +14,10 @@ const virtualOptionSchema = new mongoose.Schema({
   // For dropdown/buttons/radio
   values: [{ type: String }],
   preselectValue: { type: String },
+  // for multi select
+  multiselect: { type: Boolean, default: false },
+  multiselectRule: { type: String, enum: ['no_restriction', 'at_least', 'at_most', 'exactly'], default: 'no_restriction' },
+  multiselectValue: { type: Number, default: null },
   // For checkboxes
   preselectValues: [{ type: String }],
   // For text
