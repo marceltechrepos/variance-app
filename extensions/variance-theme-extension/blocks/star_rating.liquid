@@ -175,12 +175,10 @@ window.renderVariantOptions = function(options) {
         break;
 
       case 'instructions':
-        var instructionsInput = document.createElement('input');
-        instructionsInput.type = 'text';
-        instructionsInput.name = fieldName + '_instructions';
-        instructionsInput.value = option.htmlContent || '';
-        instructionsInput.className = 'option-instructions-input';
-        content.appendChild(instructionsInput);
+        var instructionsText = document.createElement('p');
+        instructionsText.className = 'option-instructions-text';
+        instructionsText.textContent = option.htmlContent || '';
+        content.appendChild(instructionsText);
         break;
 
       default:
