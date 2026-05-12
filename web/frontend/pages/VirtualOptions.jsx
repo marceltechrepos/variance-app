@@ -1,4 +1,18 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import {
+    Page,
+    Layout,
+    Card,
+    Text,
+    Link,
+    Button,
+    Box,
+    Grid,
+    Modal,
+} from "@shopify/polaris";
+import { TitleBar } from "@shopify/app-bridge-react";
+import { useSearchParams } from "react-router-dom";
+import { toast } from 'react-toastify';
 
 // Helper to generate unique ID
 const generateId = () => Math.random().toString(36).substr(2, 9);
@@ -30,6 +44,35 @@ const VirtualOptions = () => {
     const [selections, setSelections] = useState({});
     const [checkboxSelections, setCheckboxSelections] = useState({});
     const [fileNames, setFileNames] = useState({});
+    const [isLoading, setIsLoading] = useState(true);
+    const [saveStatus, setSaveStatus] = useState(null);
+
+    const [searchParams] = useSearchParams();
+    const productId = searchParams.get("productId");
+
+    // Load virtual options for this product
+    useEffect(() => {
+        if (!productId) {
+            setIsLoading(false);
+            return;
+        }
+        const fetchOptions = async () => {
+            try {
+                const res = await fetch(`/api/virtual-options/${productId}`);
+                const data = await res.json();
+                if (data.success && data.options && data.options.length) {
+                    setVirtualOptions(data.options);
+                } else {
+                    setVirtualOptions([]);
+                }
+            } catch (err) {
+                console.error(err);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchOptions();
+    }, [productId]);
 
     // Form state for new/edit option
     const [newOption, setNewOption] = useState({
@@ -171,7 +214,8 @@ const VirtualOptions = () => {
                 type: 'colorSwatches',
                 required: option.required,
                 preselectValue: option.preselectValue || '',
-                colorValues: option.values.map(v => `${v.label}:${v.color}`).join(', '),
+                // colorValues: option.values.map(v => `${v.label}:${v.color}`).join(', '),
+                colorValues: option.colorValues.map(v => `${v.label}:${v.color}`).join(', '),
                 values: '',
                 maxLength: '',
                 inputType: 'text',
@@ -189,7 +233,8 @@ const VirtualOptions = () => {
                 type: 'imageSwatches',
                 required: option.required,
                 preselectValue: option.preselectValue || '',
-                imageValues: option.values.map(v => `${v.label}:${v.imageUrl}`).join(', '),
+                // imageValues: option.values.map(v => `${v.label}:${v.imageUrl}`).join(', '),
+                imageValues: option.imageValues.map(v => `${v.label}:${v.imageUrl}`).join(', '),
                 values: '',
                 maxLength: '',
                 inputType: 'text',
@@ -297,7 +342,8 @@ const VirtualOptions = () => {
                 title: newOption.title,
                 type: 'colorSwatches',
                 required: newOption.required,
-                values: colorItems,
+                colorValues: colorItems,
+                // values: colorItems,
                 preselectValue: newOption.preselectValue,
             };
         } else if (newOption.type === 'imageSwatches') {
@@ -310,7 +356,8 @@ const VirtualOptions = () => {
                 title: newOption.title,
                 type: 'imageSwatches',
                 required: newOption.required,
-                values: imageItems,
+                imageValues: imageItems,
+                // values: imageItems,
                 preselectValue: newOption.preselectValue,
             };
         } else if (newOption.type === 'grid') {
@@ -340,19 +387,99 @@ const VirtualOptions = () => {
         } else {
             setVirtualOptions([...virtualOptions, savedOption]);
         }
+
+        // ✅ Backend save call yahan add karo
+        saveToBackendWithOptions(editingId
+            ? virtualOptions.map(opt => (opt.id === editingId ? savedOption : opt))
+            : [...virtualOptions, savedOption]
+        );
+
         setIsModalOpen(false);
     };
 
-    const deleteOption = (id) => {
-        setVirtualOptions(virtualOptions.filter(opt => opt.id !== id));
-        // Clean up selection states
-        const newSelections = { ...selections };
-        delete newSelections[id];
-        setSelections(newSelections);
-        const newCheckboxSelections = { ...checkboxSelections };
-        delete newCheckboxSelections[id];
-        setCheckboxSelections(newCheckboxSelections);
+    const saveToBackendWithOptions = async (optionsToSave) => {
+        if (!productId) return;
+        setSaveStatus('saving');
+        try {
+            const res = await fetch(`/api/virtual-options/${productId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ options: optionsToSave })
+            });
+            const data = await res.json();
+            if (data.success) {
+                toast.success("Options Saved Successfully!")
+                setSaveStatus('saved');
+                setTimeout(() => setSaveStatus(null), 2000);
+            } else {
+                toast.error("Failed to Save Options.")
+                setSaveStatus('error');
+            }
+        } catch (err) {
+            toast.error("An error occurred while saving options.")
+            setSaveStatus('error');
+        }
     };
+
+    // Save to backend
+    // const saveToBackend = async () => {
+    //     if (!productId) return;
+    //     setSaveStatus('saving');
+    //     try {
+    //         const res = await fetch(`/api/virtual-options/${productId}`, {
+    //             method: 'POST',
+    //             headers: { 'Content-Type': 'application/json' },
+    //             body: JSON.stringify({ options: virtualOptions })
+    //         });
+    //         const data = await res.json();
+    //         if (data.success) {
+    //             setSaveStatus('saved');
+    //             setTimeout(() => setSaveStatus(null), 2000);
+    //         } else {
+    //             setSaveStatus('error');
+    //         }
+    //     } catch (err) {
+    //         setSaveStatus('error');
+    //     }
+    // };
+
+    // Delete option
+    const deleteOption = async (id) => {
+        if (!productId) return;
+
+        try {
+            const res = await fetch(`/api/virtual-options/${productId}/${id}`, {
+                method: 'DELETE'
+            });
+            const data = await res.json();
+            if (data.success) {
+                toast.success("Option Deleted Successfully!");
+                setVirtualOptions(data.options);
+                // Clean up selection states
+                const newSelections = { ...selections };
+                delete newSelections[id];
+                setSelections(newSelections);
+                const newCheckboxSelections = { ...checkboxSelections };
+                delete newCheckboxSelections[id];
+                setCheckboxSelections(newCheckboxSelections);
+
+            }
+        } catch (err) {
+            toast.error("An error occurred while deleting the option.");
+            console.error(err);
+        }
+    };
+
+    // const deleteOption = (id) => {
+    //     setVirtualOptions(virtualOptions.filter(opt => opt.id !== id));
+    //     // Clean up selection states
+    //     const newSelections = { ...selections };
+    //     delete newSelections[id];
+    //     setSelections(newSelections);
+    //     const newCheckboxSelections = { ...checkboxSelections };
+    //     delete newCheckboxSelections[id];
+    //     setCheckboxSelections(newCheckboxSelections);
+    // };
 
     // Handlers for customer selections
     const handleDropdownChange = (id, value) => setSelections({ ...selections, [id]: value });
@@ -461,7 +588,7 @@ const VirtualOptions = () => {
             case 'colorSwatches':
                 return (
                     <div className="flex flex-wrap gap-3">
-                        {option.values.map(item => (
+                        {option.colorValues.map(item => (
                             <button
                                 key={item.label}
                                 type="button"
@@ -476,7 +603,7 @@ const VirtualOptions = () => {
             case 'imageSwatches':
                 return (
                     <div className="flex flex-wrap gap-3">
-                        {option.values.map(item => (
+                        {option.imageValues.map(item => (
                             <button
                                 key={item.label}
                                 type="button"
@@ -517,6 +644,7 @@ const VirtualOptions = () => {
                             ))}
                         </tbody>
                     </table>
+                    
                 );
             case 'instructions':
                 return <div className="p-3 bg-gray-50 rounded-md text-sm" dangerouslySetInnerHTML={{ __html: option.htmlContent }} />;
@@ -535,7 +663,7 @@ const VirtualOptions = () => {
                 </div>
 
                 {/* Action Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                {/* <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                     <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200 cursor-pointer hover:shadow-md transition">
                         <h3 className="font-semibold text-gray-800">Duplicate</h3>
                         <p className="text-sm text-gray-500">Duplicate settings from one product to others</p>
@@ -548,7 +676,58 @@ const VirtualOptions = () => {
                         <h3 className="font-semibold text-gray-800">Help</h3>
                         <p className="text-sm text-gray-500">Articles on how to use the app and fix common issues</p>
                     </div>
-                </div>
+                </div> */}
+
+                {/* Action Cards */}
+                <Layout.Section>
+                    <Grid>
+                        <Grid.Cell columnSpan={{ xs: 6, sm: 4, md: 4, lg: 4, xl: 4 }}>
+                            <Card>
+                                <Box padding="8" style={{ textAlign: "center", minHeight: "220px", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: "16px" }}>
+                                    <Box style={{ width: "68px", height: "68px", borderRadius: "16px", display: "flex", justifyContent: "center", alignItems: "center", backgroundColor: "#eff6ff", color: "#1d4ed8", fontSize: "32px", boxShadow: "inset 0 0 0 1px rgba(29, 78, 216, 0.1)" }}>
+                                        📋
+                                    </Box>
+                                    <Text as="h3" variant="headingMd" style={{ marginBottom: "0", fontWeight: "700", color: "#111827" }}>
+                                        Duplicate
+                                    </Text>
+                                    <Text variant="bodySm" tone="subdued" style={{ lineHeight: "1.6", maxWidth: "220px" }}>
+                                        Duplicate settings from one product to others efficiently
+                                    </Text>
+                                </Box>
+                            </Card>
+                        </Grid.Cell>
+                        <Grid.Cell columnSpan={{ xs: 6, sm: 4, md: 4, lg: 4, xl: 4 }}>
+                            <Card>
+                                <Box padding="8" style={{ textAlign: "center", minHeight: "220px", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: "16px" }}>
+                                    <Box style={{ width: "68px", height: "68px", borderRadius: "16px", display: "flex", justifyContent: "center", alignItems: "center", backgroundColor: "#f5f3ff", color: "#4338ca", fontSize: "32px", boxShadow: "inset 0 0 0 1px rgba(67, 56, 202, 0.1)" }}>
+                                        ⚙️
+                                    </Box>
+                                    <Text as="h3" variant="headingMd" style={{ marginBottom: "0", fontWeight: "700", color: "#111827" }}>
+                                        Settings
+                                    </Text>
+                                    <Text variant="bodySm" tone="subdued" style={{ lineHeight: "1.6", maxWidth: "220px" }}>
+                                        Change settings for how the app looks and functions
+                                    </Text>
+                                </Box>
+                            </Card>
+                        </Grid.Cell>
+                        <Grid.Cell columnSpan={{ xs: 6, sm: 4, md: 4, lg: 4, xl: 4 }}>
+                            <Card>
+                                <Box padding="8" style={{ textAlign: "center", minHeight: "220px", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: "16px" }}>
+                                    <Box style={{ width: "68px", height: "68px", borderRadius: "16px", display: "flex", justifyContent: "center", alignItems: "center", backgroundColor: "#fdf2f8", color: "#db2777", fontSize: "32px", boxShadow: "inset 0 0 0 1px rgba(219, 39, 119, 0.1)" }}>
+                                        ❓
+                                    </Box>
+                                    <Text as="h3" variant="headingMd" style={{ marginBottom: "0", fontWeight: "700", color: "#111827" }}>
+                                        Help
+                                    </Text>
+                                    <Text variant="bodySm" tone="subdued" style={{ lineHeight: "1.6", maxWidth: "220px" }}>
+                                        Articles on how to use the app and fix common issues
+                                    </Text>
+                                </Box>
+                            </Card>
+                        </Grid.Cell>
+                    </Grid>
+                </Layout.Section>
 
                 {/* Shopify Options Section */}
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">

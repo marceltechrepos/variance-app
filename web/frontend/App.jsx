@@ -2,6 +2,7 @@ import { BrowserRouter, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { NavMenu } from "@shopify/app-bridge-react";
 import Routes from "./Routes";
+import { ToastContainer } from 'react-toastify';
 import "./App.css"
 
 import { QueryProvider, PolarisProvider } from "./components";
@@ -21,9 +22,10 @@ export default function App() {
         <QueryProvider>
           <NavMenu>
             <Link to="/" rel="home" />
-            <Link to="/virtualoptions" element={<VirtualOptions />} >VirtualOptions</Link>
+            {/* <Link to="/virtualoptions" element={<VirtualOptions />} >VirtualOptions</Link> */}
           </NavMenu>
           <Routes pages={pages} />
+          <ToastContainer />
         </QueryProvider>
       </BrowserRouter>
     </PolarisProvider>
