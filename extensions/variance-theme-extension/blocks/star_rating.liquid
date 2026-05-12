@@ -1,10 +1,70 @@
-<button onclick="hitGetApi()">Click me</button>
+<div id="variance-product-options" class="variance-product-options"></div>
+
+<script>
+window.renderVariantOptions = function(options) {
+  var mountNode = document.getElementById('variance-product-options');
+  if (!mountNode || !Array.isArray(options) || options.length === 0) {
+    return;
+  }
+  mountNode.innerHTML = '';
+
+  options.forEach(function(option) {
+    var optionBlock = document.createElement('div');
+    optionBlock.className = 'variance-option-block';
+
+    var title = document.createElement('div');
+    title.className = 'variance-option-title';
+    title.textContent = option.title || 'Option';
+    optionBlock.appendChild(title);
+
+    if (option.type === 'radio' && Array.isArray(option.values)) {
+      var radioGroup = document.createElement('div');
+      radioGroup.className = 'variance-option-radio-group';
+
+      option.values.forEach(function(value, index) {
+        var fieldId = 'variance-option-' + (option.title || 'option').toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + index;
+        var fieldWrapper = document.createElement('label');
+        fieldWrapper.className = 'variance-option-radio-label';
+
+        var radio = document.createElement('input');
+        radio.type = 'radio';
+        radio.name = option.title || 'variant_option';
+        radio.value = value;
+        radio.id = fieldId;
+
+        var labelText = document.createElement('span');
+        labelText.textContent = value;
+
+        fieldWrapper.appendChild(radio);
+        fieldWrapper.appendChild(labelText);
+        radioGroup.appendChild(fieldWrapper);
+      });
+
+      optionBlock.appendChild(radioGroup);
+    } else if (option.type === 'dropdown' && Array.isArray(option.values)) {
+      var select = document.createElement('select');
+      select.className = 'variance-option-select';
+
+      option.values.forEach(function(value) {
+        var optionElement = document.createElement('option');
+        optionElement.value = value;
+        optionElement.textContent = value;
+        select.appendChild(optionElement);
+      });
+
+      optionBlock.appendChild(select);
+    }
+
+    mountNode.appendChild(optionBlock);
+  });
+};
+</script>
 
 {% schema %}
 {
   "name": "variance app extension",
   "target": "section",
   "stylesheet": "style.css",
-  "javascript": "scripts.js",
+  "javascript": "scripts.js"
 }
 {% endschema %}
