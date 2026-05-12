@@ -11,6 +11,7 @@ import {
   Modal,
 } from "@shopify/polaris";
 import { TitleBar } from "@shopify/app-bridge-react";
+import { useNavigate } from "react-router-dom";
 
 export default function HomePage() {
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
@@ -19,6 +20,8 @@ export default function HomePage() {
   const [productModalError, setProductModalError] = useState("");
   const [selectedProductId, setSelectedProductId] = useState(null);
   const [showUpgradeBanner, setShowUpgradeBanner] = useState(true);
+
+  const navigate = useNavigate();
 
 
   const handleCloseProductModal = () => {
@@ -53,7 +56,12 @@ export default function HomePage() {
 
   const handleContinue = () => {
     if (selectedProductId) {
-      alert(selectedProductId);
+      // Extract only numeric ID from gid
+      const productId = selectedProductId.split("/").pop();
+
+      console.log(productId);
+
+      navigate(`/virtualoptions?productId=${productId}`);
     }
   };
 
@@ -143,10 +151,10 @@ export default function HomePage() {
         {showUpgradeBanner && (
           <Layout.Section>
             <Card sectioned>
-              <Box style={{ 
-                backgroundColor: "#fefce8", 
-                borderRadius: "10px", 
-                border: "1px solid #fef08a", 
+              <Box style={{
+                backgroundColor: "#fefce8",
+                borderRadius: "10px",
+                border: "1px solid #fef08a",
                 padding: "14px 20px",
                 display: "flex",
                 justifyContent: "space-between",
@@ -155,7 +163,7 @@ export default function HomePage() {
                 <Text variant="bodyMd" style={{ color: "#854d0e", fontWeight: "600", display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span>⚠️</span> Upgrade to the Basic Plan to add product options to unlimited products.
                 </Text>
-                <button 
+                <button
                   onClick={() => setShowUpgradeBanner(false)}
                   style={{
                     background: "none",
@@ -225,12 +233,13 @@ export default function HomePage() {
         {/* Add Options Section */}
         <Layout.Section>
           <Card>
-            <Box padding="10" style={{ 
-              textAlign: "center", 
-              display: "grid", 
-              gap: "24px", 
+            <Box padding="10" style={{
+              textAlign: "center",
+              display: "grid",
+              gap: "24px",
               background: "linear-gradient(to bottom, #ffffff, #f8fafc)",
-              borderRadius: "12px"
+              borderRadius: "12px",
+              padding: "15px 15px"
             }}>
               <Text as="h3" variant="headingLg" style={{ margin: "0", fontWeight: "800", color: "#111827" }}>
                 Add options to a single product:
@@ -238,12 +247,12 @@ export default function HomePage() {
               <div style={{ display: 'flex', justifyContent: 'center' }}>
                 <Button
                   onClick={handleOpenProductModal}
-                  style={{ 
-                    minWidth: "180px", 
+                  style={{
+                    minWidth: "180px",
                     height: "48px",
-                    backgroundColor: "#000000", 
-                    color: "#ffffff", 
-                    borderColor: "#000000", 
+                    backgroundColor: "#000000",
+                    color: "#ffffff",
+                    borderColor: "#000000",
                     padding: "0 32px",
                     fontWeight: "700",
                     fontSize: "16px",

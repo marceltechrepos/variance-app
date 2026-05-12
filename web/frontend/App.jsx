@@ -1,9 +1,12 @@
-import { BrowserRouter } from "react-router-dom";
+import { BrowserRouter, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { NavMenu } from "@shopify/app-bridge-react";
 import Routes from "./Routes";
+import { ToastContainer } from 'react-toastify';
+import "./App.css"
 
 import { QueryProvider, PolarisProvider } from "./components";
+import VirtualOptions from "./pages/VirtualOptions";
 
 export default function App() {
   // Any .tsx or .jsx files in /pages will become a route
@@ -18,10 +21,11 @@ export default function App() {
       <BrowserRouter>
         <QueryProvider>
           <NavMenu>
-            <a href="/" rel="home" />
-            <a href="/pagename">{t("NavigationMenu.pageName")}</a>
+            <Link to="/" rel="home" />
+            {/* <Link to="/virtualoptions" element={<VirtualOptions />} >VirtualOptions</Link> */}
           </NavMenu>
           <Routes pages={pages} />
+          <ToastContainer />
         </QueryProvider>
       </BrowserRouter>
     </PolarisProvider>

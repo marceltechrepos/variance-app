@@ -8,7 +8,8 @@ import shopify from "./shopify.js";
 import productCreator from "./product-creator.js";
 import PrivacyWebhookHandlers from "./privacy.js";
 import connectDB from "./Utils/db.js";
-import productRoutes from "./Routes/productRoutes.js";
+import ProductRoute from "./Routes/productRoutes.js";
+import virtualOptionsRoutes from "./Routes/virtualOptionsRoutes.js";
 
 
 const PORT = parseInt(
@@ -43,8 +44,14 @@ app.use("/api/*", shopify.validateAuthenticatedSession());
 app.use(express.json());
 connectDB();
 
+const routes = [ProductRoute, virtualOptionsRoutes]
+
+routes.forEach((route) => {
+  app.use("/api", route)
+})
+
 // Use product routes
-app.use("/api/products", productRoutes);
+// app.use("/api/products", virtualOptionsRoutes);
 
 app.use(shopify.cspHeaders());
 app.use(serveStatic(STATIC_PATH, { index: false }));

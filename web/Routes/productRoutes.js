@@ -6,21 +6,21 @@ import {
   getProductsList,
 } from "../Controllers/productController.js";
 
-const router = express.Router();
+const ProductRoute = express.Router();
 
 /**
  * GET /api/products/count - Get total products count
  */
-router.get("/count", getProductsCount);
+ProductRoute.get("/products/count", getProductsCount);
 
 /**
  * POST /api/products - Create demo products
  */
-router.post("/", createProducts);
+ProductRoute.post("/products", createProducts);
 
 /**
  * GET /api/products/list - Get list of all products with variants
  */
-router.get("/list", getProductsList);
+ProductRoute.get("/products/list", getProductsList);
 
-export default router;
+export default ProductRoute;
