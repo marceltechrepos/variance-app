@@ -1,0 +1,202 @@
+<div id="variance-product-options" class="variance-product-options"></div>
+
+<script>
+function buildFieldName(option) {
+  var base = option.title || option.id || option.optionId || 'option';
+  base = base.toString().trim().toLowerCase().replace(/[^a-z0-9]+/g, '_');
+  if (!base) base = 'option';
+  return base;
+}
+
+window.renderVariantOptions = function(options) {
+  var mountNode = document.getElementById('variance-product-options');
+  if (!mountNode || !Array.isArray(options) || options.length === 0) {
+    return;
+  }
+
+  mountNode.innerHTML = '';
+
+  options.forEach(function(option, index) {
+    var optionType = option.type || 'unknown';
+    var fieldName = buildFieldName(option);
+    var wrapper = document.createElement('div');
+    wrapper.className = 'option-wrapper option-' + optionType + '-wrapper';
+    wrapper.id = 'option-' + optionType + '-wrapper-' + index;
+    wrapper.setAttribute('data-option-type', optionType);
+
+    var title = document.createElement('div');
+    title.className = 'option-title option-' + optionType + '-title';
+    title.textContent = option.title || '';
+    wrapper.appendChild(title);
+
+    var content = document.createElement('div');
+    content.className = 'option-content option-' + optionType + '-content';
+
+    switch (optionType) {
+      case 'dropdown':
+        var select = document.createElement('select');
+        select.name = fieldName + '_option';
+        select.className = 'option-dropdown-select';
+
+        if (Array.isArray(option.values)) {
+          option.values.forEach(function(value) {
+            var optionElement = document.createElement('option');
+            optionElement.value = value;
+            optionElement.textContent = value;
+            select.appendChild(optionElement);
+          });
+        }
+
+        content.appendChild(select);
+        break;
+
+      case 'buttons':
+        var hiddenInput = document.createElement('input');
+        hiddenInput.type = 'hidden';
+        hiddenInput.name = fieldName + '_option';
+        hiddenInput.value = '';
+
+        var buttonGroup = document.createElement('div');
+        buttonGroup.className = 'option-buttons-group';
+
+        if (Array.isArray(option.values)) {
+          option.values.forEach(function(value) {
+            var button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'option-button';
+            button.textContent = value;
+
+            button.addEventListener('click', function() {
+              hiddenInput.value = value;
+              var activeButtons = buttonGroup.querySelectorAll('.option-button.active');
+              activeButtons.forEach(function(active) {
+                active.classList.remove('active');
+              });
+              button.classList.add('active');
+            });
+
+            buttonGroup.appendChild(button);
+          });
+        }
+
+        content.appendChild(hiddenInput);
+        content.appendChild(buttonGroup);
+        break;
+
+      case 'color_swatches':
+        content.innerHTML = '<div class="option-color-swatches-placeholder">Color swatches placeholder</div>';
+        break;
+
+      case 'image_swatches':
+        content.innerHTML = '<div class="option-image-swatches-placeholder">Image swatches placeholder</div>';
+        break;
+
+      case 'text':
+        var textInput = document.createElement('input');
+        textInput.type = 'text';
+        textInput.name = fieldName + '_text';
+        textInput.className = 'option-text-input';
+        content.appendChild(textInput);
+        break;
+
+      case 'longText':
+        var textarea = document.createElement('textarea');
+        textarea.name = fieldName + '_long_text';
+        textarea.className = 'option-long-text-input';
+        content.appendChild(textarea);
+        break;
+
+      case 'fileUpload':
+        var fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.name = fieldName + '_file';
+        fileInput.className = 'option-file-input';
+        content.appendChild(fileInput);
+        break;
+
+      case 'radio':
+        var radioGroup = document.createElement('div');
+        radioGroup.className = 'option-radio-group';
+
+        if (Array.isArray(option.values)) {
+          option.values.forEach(function(value, valueIndex) {
+            var itemWrapper = document.createElement('label');
+            itemWrapper.className = 'option-radio-label';
+
+            var radio = document.createElement('input');
+            radio.type = 'radio';
+            radio.name = fieldName + '_option';
+            radio.value = value;
+            radio.className = 'option-radio-input';
+            radio.id = fieldName + '_radio_' + valueIndex;
+
+            var labelText = document.createElement('span');
+            labelText.textContent = value;
+
+            itemWrapper.appendChild(radio);
+            itemWrapper.appendChild(labelText);
+            radioGroup.appendChild(itemWrapper);
+          });
+        }
+
+        content.appendChild(radioGroup);
+        break;
+
+      case 'checkboxes':
+        var checkboxGroup = document.createElement('div');
+        checkboxGroup.className = 'option-checkboxes-group';
+
+        if (Array.isArray(option.values)) {
+          option.values.forEach(function(value, valueIndex) {
+            var itemWrapper = document.createElement('label');
+            itemWrapper.className = 'option-checkbox-label';
+
+            var checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.name = fieldName + '[]';
+            checkbox.value = value;
+            checkbox.className = 'option-checkbox-input';
+            checkbox.id = fieldName + '_checkbox_' + valueIndex;
+
+            var labelText = document.createElement('span');
+            labelText.textContent = value;
+
+            itemWrapper.appendChild(checkbox);
+            itemWrapper.appendChild(labelText);
+            checkboxGroup.appendChild(itemWrapper);
+          });
+        }
+
+        content.appendChild(checkboxGroup);
+        break;
+
+      case 'grid':
+        content.innerHTML = '<div class="option-grid-placeholder">Grid placeholder</div>';
+        break;
+
+      case 'instructions':
+        var instructionsText = document.createElement('p');
+        instructionsText.className = 'option-instructions-text';
+        instructionsText.textContent = option.htmlContent || '';
+        content.appendChild(instructionsText);
+        break;
+
+      default:
+        content.innerHTML = '<div class="option-default-placeholder">Unsupported option type</div>';
+        break;
+    }
+
+    wrapper.appendChild(content);
+    mountNode.appendChild(wrapper);
+  });
+};
+</script>
+
+{% schema %}
+{
+  "name": "variance app extension",
+  "target": "section",
+  "stylesheet": "style.css",
+  "javascript": "scripts.js"
+}
+{% endschema %}
