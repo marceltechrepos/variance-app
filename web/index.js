@@ -12,6 +12,8 @@ import ProductRoute from "./Routes/productRoutes.js";
 import virtualOptionsRoutes from "./Routes/virtualOptionsRoutes.js";
 import variantOptionsRouter from "./Routes/variantOptionsRoutes.js";
 
+import uploadImageRoute from "./Routes/uploadRoutes.js";
+import fileUpload from "express-fileupload";
 
 const PORT = parseInt(
   process.env.BACKEND_PORT || process.env.PORT || "3000",
@@ -83,11 +85,15 @@ app.use("/api/*", shopify.validateAuthenticatedSession());
 // app.use("/proxy/*", authenticateUser);
 app.use("/proxy", authenticateUser);
 
+app.use(fileUpload({
+  useTempFiles: true,
+  tempFileDir: '/tmp/'
+}));
 
 app.use(express.json());
 connectDB();
 
-const routes = [ProductRoute, virtualOptionsRoutes, variantOptionsRouter]
+const routes = [ProductRoute, virtualOptionsRoutes, uploadImageRoute,variantOptionsRouter]
 
 routes.forEach((route) => {
   app.use("/api", route);

@@ -46,6 +46,19 @@ const VirtualOptions = () => {
     const [fileNames, setFileNames] = useState({});
     const [isLoading, setIsLoading] = useState(true);
     const [saveStatus, setSaveStatus] = useState(null);
+    const [multiSelections, setMultiSelections] = useState({});
+    const [previewMultiSelections, setPreviewMultiSelections] = useState({});
+
+    // Separate state for Preview section
+    const [previewSelections, setPreviewSelections] = useState({});
+    const [previewCheckboxSelections, setPreviewCheckboxSelections] = useState({});
+    const [previewFileNames, setPreviewFileNames] = useState({});
+
+    // Color items (for colorSwatches modal)
+    const [colorItems, setColorItems] = useState([]);
+
+    // Image items for imageSwatches modal – holds both existing URLs and new files
+    const [imageItems, setImageItems] = useState([]); // { label, imageUrl?, file? }
 
     const [searchParams] = useSearchParams();
     const productId = searchParams.get("productId");
@@ -91,6 +104,9 @@ const VirtualOptions = () => {
         colorValues: '',
         imageValues: '',
         preselectValues: '',
+        multiselect: false,
+        multiselectRule: '',
+        multiselectValue: '',
     });
 
     const openAddModal = () => {
@@ -111,13 +127,31 @@ const VirtualOptions = () => {
             colorValues: '',
             imageValues: '',
             preselectValues: '',
+            multiselect: false,
+            multiselectRule: '',
+            multiselectValue: '',
         });
+        setColorItems([]);
+        setImageItems([]);
+        setMultiSelections({});
+        setPreviewMultiSelections({});
         setIsModalOpen(true);
     };
 
     const openEditModal = (option) => {
         setEditingId(option.id);
-        // Populate based on type
+        setMultiSelections(prev => {
+            const newState = { ...prev };
+            delete newState[option.id];
+            delete newState[editingId]; // safety
+            return newState;
+        });
+        setPreviewMultiSelections(prev => {
+            const newState = { ...prev };
+            delete newState[option.id];
+            delete newState[editingId];
+            return newState;
+        });
         if (option.type === 'dropdown' || option.type === 'buttons' || option.type === 'radio') {
             setNewOption({
                 title: option.title,
@@ -135,6 +169,9 @@ const VirtualOptions = () => {
                 colorValues: '',
                 imageValues: '',
                 preselectValues: '',
+                multiselect: option.multiselect || false,
+                multiselectRule: option.multiselectRule || 'no_restriction',
+                multiselectValue: option.multiselectValue || '',
             });
         } else if (option.type === 'checkboxes') {
             setNewOption({
@@ -153,6 +190,9 @@ const VirtualOptions = () => {
                 yAxisKeys: '',
                 colorValues: '',
                 imageValues: '',
+                multiselect: option.multiselect || false,
+                multiselectRule: option.multiselectRule || 'no_restriction',
+                multiselectValue: option.multiselectValue || '',
             });
         } else if (option.type === 'text') {
             setNewOption({
@@ -209,13 +249,13 @@ const VirtualOptions = () => {
                 preselectValues: '',
             });
         } else if (option.type === 'colorSwatches') {
+            setColorItems(option.colorValues || []);
             setNewOption({
                 title: option.title,
                 type: 'colorSwatches',
                 required: option.required,
                 preselectValue: option.preselectValue || '',
-                // colorValues: option.values.map(v => `${v.label}:${v.color}`).join(', '),
-                colorValues: option.colorValues.map(v => `${v.label}:${v.color}`).join(', '),
+                colorValues: '',
                 values: '',
                 maxLength: '',
                 inputType: 'text',
@@ -226,15 +266,19 @@ const VirtualOptions = () => {
                 yAxisKeys: '',
                 imageValues: '',
                 preselectValues: '',
+                multiselect: option.multiselect || false,
+                multiselectRule: option.multiselectRule || 'no_restriction',
+                multiselectValue: option.multiselectValue || '',
             });
         } else if (option.type === 'imageSwatches') {
+            // Existing imageValues become items with imageUrl only
+            setImageItems((option.imageValues || []).map(v => ({ label: v.label, imageUrl: v.imageUrl })));
             setNewOption({
                 title: option.title,
                 type: 'imageSwatches',
                 required: option.required,
                 preselectValue: option.preselectValue || '',
-                // imageValues: option.values.map(v => `${v.label}:${v.imageUrl}`).join(', '),
-                imageValues: option.imageValues.map(v => `${v.label}:${v.imageUrl}`).join(', '),
+                imageValues: '',
                 values: '',
                 maxLength: '',
                 inputType: 'text',
@@ -245,6 +289,9 @@ const VirtualOptions = () => {
                 yAxisKeys: '',
                 colorValues: '',
                 preselectValues: '',
+                multiselect: option.multiselect || false,
+                multiselectRule: option.multiselectRule || 'no_restriction',
+                multiselectValue: option.multiselectValue || '',
             });
         } else if (option.type === 'grid') {
             setNewOption({
@@ -286,11 +333,118 @@ const VirtualOptions = () => {
         setIsModalOpen(true);
     };
 
-    const saveOption = () => {
+    const saveOption = async () => {
         let savedOption;
         const id = editingId || generateId();
 
-        if (newOption.type === 'dropdown' || newOption.type === 'buttons' || newOption.type === 'radio') {
+        // ---- Buttons ----
+        if (newOption.type === 'buttons') {
+            if (newOption.multiselect) {
+                const multiArray = multiSelections[id] || [];
+                savedOption = {
+                    id,
+                    title: newOption.title,
+                    type: 'buttons',
+                    required: newOption.required,
+                    values: newOption.values.split(',').map(v => v.trim()),
+                    preselectValue: newOption.preselectValue,
+                    multiselect: true,
+                    multiselectRule: newOption.multiselectRule || 'no_restriction',
+                    multiselectValue: newOption.multiselectRule !== 'no_restriction' ? parseInt(newOption.multiselectValue) || null : null,
+                    // Optionally store the selected defaults as well? Not really needed for option definition.
+                };
+            } else {
+                savedOption = {
+                    id,
+                    title: newOption.title,
+                    type: 'buttons',
+                    required: newOption.required,
+                    values: newOption.values.split(',').map(v => v.trim()),
+                    preselectValue: newOption.preselectValue,
+                };
+            }
+        }
+
+        // ---- Color Swatches ----
+        else if (newOption.type === 'colorSwatches') {
+            if (newOption.multiselect) {
+                const multiArray = multiSelections[id] || [];
+            }
+            savedOption = {
+                id,
+                title: newOption.title,
+                type: 'colorSwatches',
+                required: newOption.required,
+                colorValues: colorItems,
+                preselectValue: newOption.preselectValue,
+                multiselect: newOption.multiselect,
+                multiselectRule: newOption.multiselectRule || 'no_restriction',
+                multiselectValue: newOption.multiselectRule !== 'no_restriction' ? parseInt(newOption.multiselectValue) || null : null,
+            };
+        }
+
+        // ---- Image Swatches ----
+        else if (newOption.type === 'imageSwatches') {
+            if (newOption.multiselect) {
+                const multiArray = multiSelections[id] || [];
+            }
+            // Upload all new files
+            const finalImageValues = [];
+            for (let item of imageItems) {
+                if (item.file) {
+                    const formData = new FormData();
+                    formData.append('file', item.file);
+                    try {
+                        const res = await fetch('/api/upload-image', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        const data = await res.json();
+                        if (data.url) {
+                            finalImageValues.push({ label: item.label, imageUrl: data.url });
+                        } else {
+                            toast.error(`Upload failed for ${item.label}`);
+                        }
+                    } catch (err) {
+                        toast.error(`Upload failed for ${item.label}`);
+                    }
+                } else if (item.imageUrl) {
+                    finalImageValues.push({ label: item.label, imageUrl: item.imageUrl });
+                }
+            }
+            savedOption = {
+                id,
+                title: newOption.title,
+                type: 'imageSwatches',
+                required: newOption.required,
+                imageValues: finalImageValues,
+                preselectValue: newOption.preselectValue,
+                multiselect: newOption.multiselect,
+                multiselectRule: newOption.multiselectRule || 'no_restriction',
+                multiselectValue: newOption.multiselectRule !== 'no_restriction' ? parseInt(newOption.multiselectValue) || null : null,
+            };
+        }
+
+        // ---- Checkboxes ----
+        else if (newOption.type === 'checkboxes') {
+            if (newOption.multiselect) {
+                const multiArray = checkboxSelections[id] || [];
+            }
+            savedOption = {
+                id,
+                title: newOption.title,
+                type: 'checkboxes',
+                required: newOption.required,
+                values: newOption.values.split(',').map(v => v.trim()),
+                preselectValues: newOption.preselectValues ? newOption.preselectValues.split(',').map(v => v.trim()) : [],
+                multiselect: newOption.multiselect,
+                multiselectRule: newOption.multiselectRule || 'no_restriction',
+                multiselectValue: newOption.multiselectRule !== 'no_restriction' ? parseInt(newOption.multiselectValue) || null : null,
+            };
+        }
+
+        // ---- Dropdown / Radio (no multiselect) ----
+        else if (newOption.type === 'dropdown' || newOption.type === 'radio') {
             savedOption = {
                 id,
                 title: newOption.title,
@@ -299,16 +453,10 @@ const VirtualOptions = () => {
                 values: newOption.values.split(',').map(v => v.trim()),
                 preselectValue: newOption.preselectValue,
             };
-        } else if (newOption.type === 'checkboxes') {
-            savedOption = {
-                id,
-                title: newOption.title,
-                type: 'checkboxes',
-                required: newOption.required,
-                values: newOption.values.split(',').map(v => v.trim()),
-                preselectValues: newOption.preselectValues ? newOption.preselectValues.split(',').map(v => v.trim()) : [],
-            };
-        } else if (newOption.type === 'text') {
+        }
+
+        // ---- Text types ----
+        else if (newOption.type === 'text') {
             savedOption = {
                 id,
                 title: newOption.title,
@@ -317,7 +465,8 @@ const VirtualOptions = () => {
                 maxLength: newOption.maxLength ? parseInt(newOption.maxLength) : undefined,
                 inputType: newOption.inputType,
             };
-        } else if (newOption.type === 'longText') {
+        }
+        else if (newOption.type === 'longText') {
             savedOption = {
                 id,
                 title: newOption.title,
@@ -325,42 +474,18 @@ const VirtualOptions = () => {
                 required: newOption.required,
                 maxLength: newOption.maxLength ? parseInt(newOption.maxLength) : undefined,
             };
-        } else if (newOption.type === 'fileUpload') {
+        }
+        else if (newOption.type === 'fileUpload') {
             savedOption = {
                 id,
                 title: newOption.title,
                 type: 'fileUpload',
                 required: newOption.required,
             };
-        } else if (newOption.type === 'colorSwatches') {
-            const colorItems = newOption.colorValues.split(',').map((item) => {
-                const [label, color] = item.split(':');
-                return { label: label.trim(), color: color?.trim() || '#000000' };
-            });
-            savedOption = {
-                id,
-                title: newOption.title,
-                type: 'colorSwatches',
-                required: newOption.required,
-                colorValues: colorItems,
-                // values: colorItems,
-                preselectValue: newOption.preselectValue,
-            };
-        } else if (newOption.type === 'imageSwatches') {
-            const imageItems = newOption.imageValues.split(',').map((item) => {
-                const [label, imageUrl] = item.split(':');
-                return { label: label.trim(), imageUrl: imageUrl?.trim() || '' };
-            });
-            savedOption = {
-                id,
-                title: newOption.title,
-                type: 'imageSwatches',
-                required: newOption.required,
-                imageValues: imageItems,
-                // values: imageItems,
-                preselectValue: newOption.preselectValue,
-            };
-        } else if (newOption.type === 'grid') {
+        }
+
+        // ---- Grid ----
+        else if (newOption.type === 'grid') {
             savedOption = {
                 id,
                 title: newOption.title,
@@ -371,8 +496,10 @@ const VirtualOptions = () => {
                 yAxisTitle: newOption.yAxisTitle,
                 yAxisKeys: newOption.yAxisKeys.split(',').map(k => k.trim()),
             };
-        } else {
-            // instructions
+        }
+
+        // ---- Instructions ----
+        else {
             savedOption = {
                 id,
                 title: newOption.title,
@@ -382,13 +509,14 @@ const VirtualOptions = () => {
             };
         }
 
+        // Update local state
         if (editingId) {
             setVirtualOptions(virtualOptions.map(opt => (opt.id === editingId ? savedOption : opt)));
         } else {
             setVirtualOptions([...virtualOptions, savedOption]);
         }
 
-        // ✅ Backend save call yahan add karo
+        // Save to backend
         saveToBackendWithOptions(editingId
             ? virtualOptions.map(opt => (opt.id === editingId ? savedOption : opt))
             : [...virtualOptions, savedOption]
@@ -396,6 +524,152 @@ const VirtualOptions = () => {
 
         setIsModalOpen(false);
     };
+
+    // const saveOption = async () => {
+    //     let savedOption;
+    //     const id = editingId || generateId();
+
+    //     if (newOption.type === 'dropdown' || newOption.type === 'radio') {
+    //         savedOption = {
+    //             id,
+    //             title: newOption.title,
+    //             type: newOption.type,
+    //             required: newOption.required,
+    //             values: newOption.values.split(',').map(v => v.trim()),
+    //             preselectValue: newOption.preselectValue,
+    //         };
+    //     } else if (newOption.type === 'buttons') {
+    //         savedOption = {
+    //             id,
+    //             title: newOption.title,
+    //             type: 'buttons',
+    //             required: newOption.required,
+    //             values: newOption.values.split(',').map(v => v.trim()),
+    //             preselectValue: newOption.preselectValue,
+    //             multiselect: newOption.multiselect,
+    //             multiselectRule: newOption.multiselectRule || 'no_restriction',
+    //             multiselectValue: newOption.multiselectRule !== 'no_restriction' ? parseInt(newOption.multiselectValue) || null : null,
+    //         };
+    //     } else if (newOption.type === 'checkboxes') {
+    //         savedOption = {
+    //             id,
+    //             title: newOption.title,
+    //             type: 'checkboxes',
+    //             required: newOption.required,
+    //             values: newOption.values.split(',').map(v => v.trim()),
+    //             preselectValues: newOption.preselectValues ? newOption.preselectValues.split(',').map(v => v.trim()) : [],
+    //             multiselect: newOption.multiselect,
+    //             multiselectRule: newOption.multiselectRule || 'no_restriction',
+    //             multiselectValue: newOption.multiselectRule !== 'no_restriction' ? parseInt(newOption.multiselectValue) || null : null,
+    //         };
+    //     } else if (newOption.type === 'text') {
+    //         savedOption = {
+    //             id,
+    //             title: newOption.title,
+    //             type: 'text',
+    //             required: newOption.required,
+    //             maxLength: newOption.maxLength ? parseInt(newOption.maxLength) : undefined,
+    //             inputType: newOption.inputType,
+    //         };
+    //     } else if (newOption.type === 'longText') {
+    //         savedOption = {
+    //             id,
+    //             title: newOption.title,
+    //             type: 'longText',
+    //             required: newOption.required,
+    //             maxLength: newOption.maxLength ? parseInt(newOption.maxLength) : undefined,
+    //         };
+    //     } else if (newOption.type === 'fileUpload') {
+    //         savedOption = {
+    //             id,
+    //             title: newOption.title,
+    //             type: 'fileUpload',
+    //             required: newOption.required,
+    //         };
+    //     } else if (newOption.type === 'colorSwatches') {
+    //         savedOption = {
+    //             id,
+    //             title: newOption.title,
+    //             type: 'colorSwatches',
+    //             required: newOption.required,
+    //             colorValues: colorItems,
+    //             preselectValue: newOption.preselectValue,
+    //             multiselect: newOption.multiselect,
+    //             multiselectRule: newOption.multiselectRule || 'no_restriction',
+    //             multiselectValue: newOption.multiselectRule !== 'no_restriction' ? parseInt(newOption.multiselectValue) || null : null,
+    //         };
+    //     } else if (newOption.type === 'imageSwatches') {
+    //         // Upload all new files
+    //         const finalImageValues = [];
+    //         for (let item of imageItems) {
+    //             if (item.file) {
+    //                 const formData = new FormData();
+    //                 formData.append('file', item.file);
+    //                 try {
+    //                     const res = await fetch('/api/upload-image', {
+    //                         method: 'POST',
+    //                         body: formData
+    //                     });
+    //                     const data = await res.json();
+    //                     if (data.url) {
+    //                         finalImageValues.push({ label: item.label, imageUrl: data.url });
+    //                     } else {
+    //                         toast.error(`Upload failed for ${item.label}`);
+    //                     }
+    //                 } catch (err) {
+    //                     toast.error(`Upload failed for ${item.label}`);
+    //                 }
+    //             } else if (item.imageUrl) {
+    //                 finalImageValues.push({ label: item.label, imageUrl: item.imageUrl });
+    //             }
+    //         }
+    //         savedOption = {
+    //             id,
+    //             title: newOption.title,
+    //             type: 'imageSwatches',
+    //             required: newOption.required,
+    //             imageValues: finalImageValues,
+    //             preselectValue: newOption.preselectValue,
+    //             multiselect: newOption.multiselect,
+    //             multiselectRule: newOption.multiselectRule || 'no_restriction',
+    //             multiselectValue: newOption.multiselectRule !== 'no_restriction' ? parseInt(newOption.multiselectValue) || null : null,
+    //         };
+    //     } else if (newOption.type === 'grid') {
+    //         savedOption = {
+    //             id,
+    //             title: newOption.title,
+    //             type: 'grid',
+    //             required: newOption.required,
+    //             xAxisTitle: newOption.xAxisTitle,
+    //             xAxisKeys: newOption.xAxisKeys.split(',').map(k => k.trim()),
+    //             yAxisTitle: newOption.yAxisTitle,
+    //             yAxisKeys: newOption.yAxisKeys.split(',').map(k => k.trim()),
+    //         };
+    //     } else {
+    //         // instructions
+    //         savedOption = {
+    //             id,
+    //             title: newOption.title,
+    //             type: 'instructions',
+    //             required: newOption.required,
+    //             htmlContent: newOption.htmlContent,
+    //         };
+    //     }
+
+    //     if (editingId) {
+    //         setVirtualOptions(virtualOptions.map(opt => (opt.id === editingId ? savedOption : opt)));
+    //     } else {
+    //         setVirtualOptions([...virtualOptions, savedOption]);
+    //     }
+
+    //     // Save to backend
+    //     saveToBackendWithOptions(editingId
+    //         ? virtualOptions.map(opt => (opt.id === editingId ? savedOption : opt))
+    //         : [...virtualOptions, savedOption]
+    //     );
+
+    //     setIsModalOpen(false);
+    // };
 
     const saveToBackendWithOptions = async (optionsToSave) => {
         if (!productId) return;
@@ -421,28 +695,6 @@ const VirtualOptions = () => {
         }
     };
 
-    // Save to backend
-    // const saveToBackend = async () => {
-    //     if (!productId) return;
-    //     setSaveStatus('saving');
-    //     try {
-    //         const res = await fetch(`/api/virtual-options/${productId}`, {
-    //             method: 'POST',
-    //             headers: { 'Content-Type': 'application/json' },
-    //             body: JSON.stringify({ options: virtualOptions })
-    //         });
-    //         const data = await res.json();
-    //         if (data.success) {
-    //             setSaveStatus('saved');
-    //             setTimeout(() => setSaveStatus(null), 2000);
-    //         } else {
-    //             setSaveStatus('error');
-    //         }
-    //     } catch (err) {
-    //         setSaveStatus('error');
-    //     }
-    // };
-
     // Delete option
     const deleteOption = async (id) => {
         if (!productId) return;
@@ -455,14 +707,24 @@ const VirtualOptions = () => {
             if (data.success) {
                 toast.success("Option Deleted Successfully!");
                 setVirtualOptions(data.options);
-                // Clean up selection states
                 const newSelections = { ...selections };
                 delete newSelections[id];
                 setSelections(newSelections);
                 const newCheckboxSelections = { ...checkboxSelections };
                 delete newCheckboxSelections[id];
                 setCheckboxSelections(newCheckboxSelections);
-
+                const newPreviewSelections = { ...previewSelections };
+                delete newPreviewSelections[id];
+                setPreviewSelections(newPreviewSelections);
+                const newPreviewCb = { ...previewCheckboxSelections };
+                delete newPreviewCb[id];
+                setPreviewCheckboxSelections(newPreviewCb);
+                const newMultiSel = { ...multiSelections };
+                delete newMultiSel[id];
+                setMultiSelections(newMultiSel);
+                const newPreviewMultiSel = { ...previewMultiSelections };
+                delete newPreviewMultiSel[id];
+                setPreviewMultiSelections(newPreviewMultiSel);
             }
         } catch (err) {
             toast.error("An error occurred while deleting the option.");
@@ -470,18 +732,7 @@ const VirtualOptions = () => {
         }
     };
 
-    // const deleteOption = (id) => {
-    //     setVirtualOptions(virtualOptions.filter(opt => opt.id !== id));
-    //     // Clean up selection states
-    //     const newSelections = { ...selections };
-    //     delete newSelections[id];
-    //     setSelections(newSelections);
-    //     const newCheckboxSelections = { ...checkboxSelections };
-    //     delete newCheckboxSelections[id];
-    //     setCheckboxSelections(newCheckboxSelections);
-    // };
-
-    // Handlers for customer selections
+    // Handlers for customer selections (non-preview)
     const handleDropdownChange = (id, value) => setSelections({ ...selections, [id]: value });
     const handleRadioChange = (id, value) => setSelections({ ...selections, [id]: value });
     const handleButtonSelect = (id, value) => setSelections({ ...selections, [id]: value });
@@ -501,11 +752,43 @@ const VirtualOptions = () => {
         }
     };
 
-    // Render a single option control (for shopify or virtual)
-    const renderOptionControl = (option, isShopify = false) => {
+    const renderOptionControl = (option, isShopify = false, isPreview = false) => {
         const id = option.id;
-        const value = selections[id] || '';
-        const checkboxVals = checkboxSelections[id] || [];
+        const selectionsObj = isPreview ? previewSelections : selections;
+        const checkboxSelectionsObj = isPreview ? previewCheckboxSelections : checkboxSelections;
+        const fileNamesObj = isPreview ? previewFileNames : fileNames;
+        const value = selectionsObj[id] || '';
+        const checkboxVals = checkboxSelectionsObj[id] || [];
+
+        const setValue = (newValue) => {
+            if (isPreview) {
+                setPreviewSelections(prev => ({ ...prev, [id]: newValue }));
+            } else {
+                setSelections(prev => ({ ...prev, [id]: newValue }));
+            }
+        };
+
+        const toggleMultiValue = (v) => {
+            const target = isPreview ? previewMultiSelections : multiSelections;
+            const currentArray = target[id] || [];
+            const exists = currentArray.includes(v);
+            const updated = exists ? currentArray.filter(x => x !== v) : [...currentArray, v];
+            if (isPreview) {
+                setPreviewMultiSelections(prev => ({ ...prev, [id]: updated }));
+            } else {
+                setMultiSelections(prev => ({ ...prev, [id]: updated }));
+            }
+        };
+
+        const toggleCheckbox = (v, checked) => {
+            const current = (isPreview ? previewCheckboxSelections[id] : checkboxSelections[id]) || [];
+            const updated = checked ? [...current, v] : current.filter(x => x !== v);
+            if (isPreview) {
+                setPreviewCheckboxSelections(prev => ({ ...prev, [id]: updated }));
+            } else {
+                setCheckboxSelections(prev => ({ ...prev, [id]: updated }));
+            }
+        };
 
         switch (option.type) {
             case 'dropdown':
@@ -513,51 +796,82 @@ const VirtualOptions = () => {
                     <select
                         className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
                         value={value}
-                        onChange={(e) => handleDropdownChange(id, e.target.value)}
+                        onChange={(e) => setValue(e.target.value)}
                         required={option.required}
                     >
                         <option value="">Choose one</option>
                         {option.values.map(v => <option key={v} value={v}>{v}</option>)}
                     </select>
                 );
+
             case 'buttons':
                 return (
                     <div className="flex flex-wrap gap-2">
-                        {option.values.map(v => (
-                            <button
-                                key={v}
-                                type="button"
-                                onClick={() => handleButtonSelect(id, v)}
-                                className={`px-3 py-1 text-sm border rounded-md transition ${selections[id] === v ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                                    }`}
-                            >
-                                {v}
-                            </button>
-                        ))}
+                        {option.values.map(v => {
+                            const selectedInMulti = option.multiselect
+                                ? (isPreview ? previewMultiSelections[id]?.includes(v) : multiSelections[id]?.includes(v))
+                                : false;
+                            const isSelected = option.multiselect
+                                ? selectedInMulti
+                                : (isPreview ? previewSelections[id] : selections[id]) === v;
+                            return (
+                                <button
+                                    key={v}
+                                    type="button"
+                                    onClick={() => {
+                                        if (option.multiselect) {
+                                            toggleMultiValue(v);
+                                        } else {
+                                            setValue(v);
+                                        }
+                                    }}
+                                    className={`px-3 py-1 text-sm border rounded-md transition ${isSelected
+                                        ? 'bg-blue-600 text-white border-blue-600'
+                                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                                        }`}
+                                >
+                                    {v}
+                                </button>
+                            );
+                        })}
                     </div>
                 );
+
             case 'radio':
                 return (
                     <div className="space-y-1">
                         {option.values.map(v => (
                             <label key={v} className="flex items-center gap-2 text-sm">
-                                <input type="radio" name={id} value={v} checked={selections[id] === v} onChange={() => handleRadioChange(id, v)} />
+                                <input
+                                    type="radio"
+                                    name={`${id}${isPreview ? '-preview' : ''}`}
+                                    value={v}
+                                    checked={(isPreview ? previewSelections[id] : selections[id]) === v}
+                                    onChange={() => setValue(v)}
+                                />
                                 <span>{v}</span>
                             </label>
                         ))}
                     </div>
                 );
+
             case 'checkboxes':
                 return (
                     <div className="space-y-1">
                         {option.values.map(v => (
                             <label key={v} className="flex items-center gap-2 text-sm">
-                                <input type="checkbox" value={v} checked={checkboxVals.includes(v)} onChange={(e) => handleCheckboxToggle(id, v, e.target.checked)} />
+                                <input
+                                    type="checkbox"
+                                    value={v}
+                                    checked={checkboxVals.includes(v)}
+                                    onChange={(e) => toggleCheckbox(v, e.target.checked)}
+                                />
                                 <span>{v}</span>
                             </label>
                         ))}
                     </div>
                 );
+
             case 'text':
                 return (
                     <input
@@ -565,9 +879,10 @@ const VirtualOptions = () => {
                         maxLength={option.maxLength}
                         className="w-full max-w-xs border border-gray-300 rounded-md px-3 py-2 text-sm"
                         value={value}
-                        onChange={(e) => handleDropdownChange(id, e.target.value)}
+                        onChange={(e) => setValue(e.target.value)}
                     />
                 );
+
             case 'longText':
                 return (
                     <textarea
@@ -575,47 +890,93 @@ const VirtualOptions = () => {
                         maxLength={option.maxLength}
                         className="w-full max-w-md border border-gray-300 rounded-md px-3 py-2 text-sm"
                         value={value}
-                        onChange={(e) => handleDropdownChange(id, e.target.value)}
+                        onChange={(e) => setValue(e.target.value)}
                     />
                 );
+
             case 'fileUpload':
                 return (
                     <div>
-                        <input type="file" onChange={(e) => handleFileUpload(id, e.target.files?.[0] || null)} />
-                        {fileNames[id] && <p className="text-xs text-gray-500 mt-1">Uploaded: {fileNames[id]}</p>}
+                        <input type="file" onChange={(e) => {
+                            const file = e.target.files?.[0] || null;
+                            if (isPreview) {
+                                if (file) setPreviewFileNames(prev => ({ ...prev, [id]: file.name }));
+                                else {
+                                    const newNames = { ...previewFileNames };
+                                    delete newNames[id];
+                                    setPreviewFileNames(newNames);
+                                }
+                            } else {
+                                handleFileUpload(id, file);
+                            }
+                        }} />
+                        {fileNamesObj[id] && <p className="text-xs text-gray-500 mt-1">Uploaded: {fileNamesObj[id]}</p>}
                     </div>
                 );
+
             case 'colorSwatches':
                 return (
-                    <div className="flex flex-wrap gap-3">
-                        {option.colorValues.map(item => (
-                            <button
-                                key={item.label}
-                                type="button"
-                                onClick={() => handleColorSwatchSelect(id, item.label)}
-                                className={`w-8 h-8 rounded-full border-2 ${selections[id] === item.label ? 'border-blue-600 ring-2 ring-blue-300' : 'border-gray-300'}`}
-                                style={{ backgroundColor: item.color }}
-                                title={item.label}
-                            />
-                        ))}
+                    <div className="flex flex-wrap gap-2">
+                        {option.colorValues.map(item => {
+                            const selectedInMulti = option.multiselect
+                                ? (isPreview ? previewMultiSelections[id]?.includes(item.label) : multiSelections[id]?.includes(item.label))
+                                : false;
+                            const isSelected = option.multiselect
+                                ? selectedInMulti
+                                : (isPreview ? previewSelections[id] : selections[id]) === item.label;
+                            return (
+                                <button
+                                    key={item.label}
+                                    type="button"
+                                    onClick={() => {
+                                        if (option.multiselect) {
+                                            toggleMultiValue(item.label);
+                                        } else {
+                                            setValue(item.label);
+                                        }
+                                    }}
+                                    className={`w-8 h-8 rounded-full border-2 ${isSelected ? 'border-blue-600 ring-2 ring-blue-300' : 'border-gray-300'
+                                        }`}
+                                    style={{ backgroundColor: item.color }}
+                                    title={item.label}
+                                />
+                            );
+                        })}
                     </div>
                 );
+
             case 'imageSwatches':
                 return (
                     <div className="flex flex-wrap gap-3">
-                        {option.imageValues.map(item => (
-                            <button
-                                key={item.label}
-                                type="button"
-                                onClick={() => handleImageSwatchSelect(id, item.label)}
-                                className={`border-2 rounded-md p-1 ${selections[id] === item.label ? 'border-blue-600 ring-2 ring-blue-300' : 'border-gray-300'}`}
-                            >
-                                <img src={item.imageUrl} alt={item.label} className="w-10 h-10 object-cover" />
-                                <span className="text-xs block">{item.label}</span>
-                            </button>
-                        ))}
+                        {option.imageValues.map(item => {
+                            const selectedInMulti = option.multiselect
+                                ? (isPreview ? previewMultiSelections[id]?.includes(item.label) : multiSelections[id]?.includes(item.label))
+                                : false;
+                            const isSelected = option.multiselect
+                                ? selectedInMulti
+                                : (isPreview ? previewSelections[id] : selections[id]) === item.label;
+                            return (
+                                <button
+                                    key={item.label}
+                                    type="button"
+                                    onClick={() => {
+                                        if (option.multiselect) {
+                                            toggleMultiValue(item.label);
+                                        } else {
+                                            setValue(item.label);
+                                        }
+                                    }}
+                                    className={`border-2 rounded-md p-1 ${isSelected ? 'border-blue-600 ring-2 ring-blue-300' : 'border-gray-300'
+                                        }`}
+                                >
+                                    <img src={item.imageUrl} alt={item.label} className="w-10 h-10 object-cover" />
+                                    <span className="text-xs block">{item.label}</span>
+                                </button>
+                            );
+                        })}
                     </div>
                 );
+
             case 'grid':
                 return (
                     <table className="border-collapse border border-gray-300 text-sm">
@@ -633,10 +994,10 @@ const VirtualOptions = () => {
                                         <td key={colKey} className="border border-gray-300 px-2 py-1 text-center">
                                             <input
                                                 type="radio"
-                                                name={`${id}-${rowKey}`}
+                                                name={`${id}-${rowKey}${isPreview ? '-preview' : ''}`}
                                                 value={`${rowKey}:${colKey}`}
-                                                checked={selections[id] === `${rowKey}:${colKey}`}
-                                                onChange={() => handleRadioChange(id, `${rowKey}:${colKey}`)}
+                                                checked={(isPreview ? previewSelections[id] : selections[id]) === `${rowKey}:${colKey}`}
+                                                onChange={() => setValue(`${rowKey}:${colKey}`)}
                                             />
                                         </td>
                                     ))}
@@ -644,10 +1005,11 @@ const VirtualOptions = () => {
                             ))}
                         </tbody>
                     </table>
-                    
                 );
+
             case 'instructions':
                 return <div className="p-3 bg-gray-50 rounded-md text-sm" dangerouslySetInnerHTML={{ __html: option.htmlContent }} />;
+
             default:
                 return null;
         }
@@ -658,25 +1020,8 @@ const VirtualOptions = () => {
             <div className="max-w-4xl mx-auto">
                 {/* Header */}
                 <div className="mb-6">
-                    {/* <h1 className="text-2xl font-bold text-gray-800">VO Product Options</h1> */}
                     <p className="text-sm text-gray-500">Home / bracelet box</p>
                 </div>
-
-                {/* Action Cards */}
-                {/* <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                    <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200 cursor-pointer hover:shadow-md transition">
-                        <h3 className="font-semibold text-gray-800">Duplicate</h3>
-                        <p className="text-sm text-gray-500">Duplicate settings from one product to others</p>
-                    </div>
-                    <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200 cursor-pointer hover:shadow-md transition">
-                        <h3 className="font-semibold text-gray-800">Settings</h3>
-                        <p className="text-sm text-gray-500">Change settings for how the app looks and functions</p>
-                    </div>
-                    <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200 cursor-pointer hover:shadow-md transition">
-                        <h3 className="font-semibold text-gray-800">Help</h3>
-                        <p className="text-sm text-gray-500">Articles on how to use the app and fix common issues</p>
-                    </div>
-                </div> */}
 
                 {/* Action Cards */}
                 <Layout.Section>
@@ -730,7 +1075,7 @@ const VirtualOptions = () => {
                 </Layout.Section>
 
                 {/* Shopify Options Section */}
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6 mt-6">
                     <div className="px-5 py-4 border-b border-gray-200 flex justify-between items-center">
                         <div>
                             <h2 className="text-lg font-semibold text-gray-800">Shopify Options</h2>
@@ -761,33 +1106,20 @@ const VirtualOptions = () => {
                             {virtualOptions.map(option => (
                                 <div key={option.id} className="border-b border-gray-100 pb-4 last:border-0">
                                     <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                                        {/* Title and required badge */}
-                                        <div className="sm:w-32 flex items-center gap-2">
+                                        <div style={{ marginRight: "-40px" }} className="sm:w-32 flex items-center gap-2">
                                             <span className="text-sm font-medium text-gray-700">{option.title}</span>
-                                            {option.required && <span className="text-xs text-red-500 bg-red-50 px-1.5 py-0.5 rounded whitespace-nowrap">required</span>}
+                                            {option.required && <span className="text-xs text-red-500 bg-red-50 px-0.5 py-0.5 rounded whitespace-nowrap">*</span>}
                                         </div>
-
-                                        {/* Input field row */}
                                         <div className="flex-1">
                                             {renderOptionControl(option, false)}
                                         </div>
-
-                                        {/* Edit/Delete icons row */}
                                         <div className="flex gap-2 items-center">
-                                            <button
-                                                onClick={() => openEditModal(option)}
-                                                className="cursor-pointer text-blue-600 hover:text-blue-800 p-1 rounded hover:bg-blue-50 transition"
-                                                title="Edit"
-                                            >
+                                            <button onClick={() => openEditModal(option)} className="cursor-pointer text-blue-600 hover:text-blue-800 p-1 rounded hover:bg-blue-50 transition" title="Edit">
                                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                                 </svg>
                                             </button>
-                                            <button
-                                                onClick={() => deleteOption(option.id)}
-                                                className="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-50 transition cursor-pointer"
-                                                title="Delete"
-                                            >
+                                            <button onClick={() => deleteOption(option.id)} className="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-50 transition cursor-pointer" title="Delete">
                                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                                 </svg>
@@ -796,10 +1128,7 @@ const VirtualOptions = () => {
                                     </div>
                                 </div>
                             ))}
-                            <button
-                                onClick={openAddModal}
-                                className="w-full mt-2 bg-blue-50 text-blue-700 border border-blue-200 py-2 rounded-md hover:bg-blue-100 transition font-medium text-sm cursor-pointer"
-                            >
+                            <button onClick={openAddModal} className="w-full mt-2 bg-blue-50 text-blue-700 border border-blue-200 py-2 rounded-md hover:bg-blue-100 transition font-medium text-sm cursor-pointer">
                                 + ADD Virtual Options
                             </button>
                             <p className="text-xs text-gray-400 text-center pt-1">
@@ -817,12 +1146,12 @@ const VirtualOptions = () => {
                             </div>
                             <div className="p-5 space-y-4">
                                 {virtualOptions.map(option => (
-                                    <div key={`preview-${option.id}`} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                                        <label className="w-32 text-sm font-medium text-gray-700">
+                                    <div key={`preview-${option.id}`} className="space-y-2">
+                                        <label className="text-sm font-medium text-gray-700">
                                             {option.title}:
                                             {option.required && <span className="text-red-500 ml-1">*</span>}
                                         </label>
-                                        {renderOptionControl(option, false)}
+                                        {renderOptionControl(option, false, true)}
                                     </div>
                                 ))}
                             </div>
@@ -838,7 +1167,6 @@ const VirtualOptions = () => {
                         <div className="p-6">
                             <h3 className="text-xl font-bold mb-4">{editingId ? 'Edit Virtual Option' : 'Add Virtual Option'}</h3>
                             <div className="space-y-4">
-                                {/* Form fields same as before - keeping it concise but complete */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
                                     <input type="text" className="w-full border border-gray-300 rounded-md px-3 py-2" value={newOption.title} onChange={(e) => setNewOption({ ...newOption, title: e.target.value })} placeholder="e.g., Color, Size, Material" />
@@ -864,40 +1192,210 @@ const VirtualOptions = () => {
                                     <label htmlFor="required" className="text-sm text-gray-700">Required field</label>
                                 </div>
 
-                                {/* Dynamic fields - same as original */}
-                                {(newOption.type === 'dropdown' || newOption.type === 'buttons' || newOption.type === 'radio') && (
+                                {/* Dynamic fields for dropdown / radio (NO MULTISELECT) */}
+                                {(newOption.type === 'dropdown' || newOption.type === 'radio') && (
                                     <>
                                         <div><label className="block text-sm font-medium text-gray-700 mb-1">Values (comma separated)</label><textarea rows={2} className="w-full border border-gray-300 rounded-md px-3 py-2" value={newOption.values} onChange={(e) => setNewOption({ ...newOption, values: e.target.value })} placeholder="small, medium, large" /></div>
                                         <div><label className="block text-sm font-medium text-gray-700 mb-1">Preselect this value</label><input type="text" className="w-full border border-gray-300 rounded-md px-3 py-2" value={newOption.preselectValue} onChange={(e) => setNewOption({ ...newOption, preselectValue: e.target.value })} placeholder="Optional" /></div>
                                     </>
                                 )}
+
+                                {/* Buttons WITH multiselect */}
+                                {newOption.type === 'buttons' && (
+                                    <>
+                                        <div><label className="block text-sm font-medium text-gray-700 mb-1">Values (comma separated)</label><textarea rows={2} className="w-full border border-gray-300 rounded-md px-3 py-2" value={newOption.values} onChange={(e) => setNewOption({ ...newOption, values: e.target.value })} placeholder="small, medium, large" /></div>
+                                        <div><label className="block text-sm font-medium text-gray-700 mb-1">Preselect this value</label><input type="text" className="w-full border border-gray-300 rounded-md px-3 py-2" value={newOption.preselectValue} onChange={(e) => setNewOption({ ...newOption, preselectValue: e.target.value })} placeholder="Optional" /></div>
+                                        <div className="flex items-center gap-2 mt-3">
+                                            <input type="checkbox" id="multiselect" checked={newOption.multiselect} onChange={(e) => setNewOption({ ...newOption, multiselect: e.target.checked })} />
+                                            <label htmlFor="multiselect" className="text-sm text-gray-700">Multi-select</label>
+                                        </div>
+                                        {newOption.multiselect && (
+                                            <>
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 mb-1">Selection Rule</label>
+                                                    <select className="w-full border border-gray-300 rounded-md px-3 py-2" value={newOption.multiselectRule} onChange={(e) => setNewOption({ ...newOption, multiselectRule: e.target.value })}>
+                                                        <option value="no_restriction">No restriction</option>
+                                                        <option value="at_least">Must choose at least</option>
+                                                        <option value="at_most">Must choose at most</option>
+                                                        <option value="exactly">Must choose exactly</option>
+                                                    </select>
+                                                </div>
+                                                {newOption.multiselectRule !== 'no_restriction' && (
+                                                    <div>
+                                                        <label className="block text-sm font-medium text-gray-700 mb-1">Number</label>
+                                                        <input type="number" className="w-full border border-gray-300 rounded-md px-3 py-2" value={newOption.multiselectValue} onChange={(e) => setNewOption({ ...newOption, multiselectValue: e.target.value })} min="1" />
+                                                    </div>
+                                                )}
+                                            </>
+                                        )}
+                                    </>
+                                )}
+
+                                {/* Checkboxes (already multi) WITH multiselect rule options */}
                                 {newOption.type === 'checkboxes' && (
                                     <>
                                         <div><label className="block text-sm font-medium text-gray-700 mb-1">Values (comma separated)</label><textarea rows={2} className="w-full border border-gray-300 rounded-md px-3 py-2" value={newOption.values} onChange={(e) => setNewOption({ ...newOption, values: e.target.value })} placeholder="small, medium, large" /></div>
                                         <div><label className="block text-sm font-medium text-gray-700 mb-1">Preselect values (comma separated)</label><input type="text" className="w-full border border-gray-300 rounded-md px-3 py-2" value={newOption.preselectValues} onChange={(e) => setNewOption({ ...newOption, preselectValues: e.target.value })} placeholder="small, large" /></div>
+                                        <div className="flex items-center gap-2 mt-3">
+                                            <input type="checkbox" id="multiselect" checked={newOption.multiselect} onChange={(e) => setNewOption({ ...newOption, multiselect: e.target.checked })} />
+                                            <label htmlFor="multiselect" className="text-sm text-gray-700">Multi-select</label>
+                                        </div>
+                                        {newOption.multiselect && (
+                                            <>
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 mb-1">Selection Rule</label>
+                                                    <select className="w-full border border-gray-300 rounded-md px-3 py-2" value={newOption.multiselectRule} onChange={(e) => setNewOption({ ...newOption, multiselectRule: e.target.value })}>
+                                                        <option value="no_restriction">No restriction</option>
+                                                        <option value="at_least">Must choose at least</option>
+                                                        <option value="at_most">Must choose at most</option>
+                                                        <option value="exactly">Must choose exactly</option>
+                                                    </select>
+                                                </div>
+                                                {newOption.multiselectRule !== 'no_restriction' && (
+                                                    <div>
+                                                        <label className="block text-sm font-medium text-gray-700 mb-1">Number</label>
+                                                        <input type="number" className="w-full border border-gray-300 rounded-md px-3 py-2" value={newOption.multiselectValue} onChange={(e) => setNewOption({ ...newOption, multiselectValue: e.target.value })} min="1" />
+                                                    </div>
+                                                )}
+                                            </>
+                                        )}
                                     </>
                                 )}
+
                                 {newOption.type === 'text' && (
                                     <>
                                         <div><label className="block text-sm font-medium text-gray-700 mb-1">Maximum length</label><input type="number" className="w-full border border-gray-300 rounded-md px-3 py-2" value={newOption.maxLength} onChange={(e) => setNewOption({ ...newOption, maxLength: e.target.value })} placeholder="e.g., 100" /></div>
                                         <div><label className="block text-sm font-medium text-gray-700 mb-1">Input type</label><select className="w-full border border-gray-300 rounded-md px-3 py-2" value={newOption.inputType} onChange={(e) => setNewOption({ ...newOption, inputType: e.target.value })}><option value="text">Text</option><option value="number">Number</option><option value="email">Email</option><option value="tel">Tel</option></select></div>
                                     </>
                                 )}
+
                                 {newOption.type === 'longText' && (
                                     <div><label className="block text-sm font-medium text-gray-700 mb-1">Maximum length</label><input type="number" className="w-full border border-gray-300 rounded-md px-3 py-2" value={newOption.maxLength} onChange={(e) => setNewOption({ ...newOption, maxLength: e.target.value })} placeholder="e.g., 500" /></div>
                                 )}
+
+                                {/* Color Swatches */}
                                 {newOption.type === 'colorSwatches' && (
                                     <>
-                                        <div><label className="block text-sm font-medium text-gray-700 mb-1">Color values (format: label:#hexcode)</label><textarea rows={2} className="w-full border border-gray-300 rounded-md px-3 py-2" value={newOption.colorValues} onChange={(e) => setNewOption({ ...newOption, colorValues: e.target.value })} placeholder="Red:#ff0000, Green:#00ff00, Blue:#0000ff" /></div>
-                                        <div><label className="block text-sm font-medium text-gray-700 mb-1">Preselect this value</label><input type="text" className="w-full border border-gray-300 rounded-md px-3 py-2" value={newOption.preselectValue} onChange={(e) => setNewOption({ ...newOption, preselectValue: e.target.value })} placeholder="Label of preselected color" /></div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Color Values</label>
+                                            {colorItems.map((item, idx) => (
+                                                <div key={idx} className="flex items-center gap-2 mb-2">
+                                                    <span className="w-6 h-6 rounded-full border" style={{ backgroundColor: item.color }} />
+                                                    <span className="text-sm">{item.label}</span>
+                                                    <button onClick={() => {
+                                                        const newItems = [...colorItems];
+                                                        newItems.splice(idx, 1);
+                                                        setColorItems(newItems);
+                                                    }} className="text-red-500 hover:text-red-700 text-xs">Remove</button>
+                                                </div>
+                                            ))}
+                                            <div className="flex gap-2 mt-2">
+                                                <input type="text" placeholder="Label" className="border rounded px-2 py-1 text-sm w-24" id="colorLabel" />
+                                                <input type="color" className="w-10 h-8 border rounded" id="colorPicker" />
+                                                <button onClick={() => {
+                                                    const label = document.getElementById('colorLabel').value.trim();
+                                                    const color = document.getElementById('colorPicker').value;
+                                                    if (label && color) {
+                                                        setColorItems([...colorItems, { label, color }]);
+                                                        document.getElementById('colorLabel').value = '';
+                                                    }
+                                                }} className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-sm">Add Value</button>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Preselect this value</label>
+                                            <input type="text" className="w-full border border-gray-300 rounded-md px-3 py-2" value={newOption.preselectValue} onChange={(e) => setNewOption({ ...newOption, preselectValue: e.target.value })} placeholder="Label" />
+                                        </div>
+                                        <div className="flex items-center gap-2 mt-3">
+                                            <input type="checkbox" id="multiselect" checked={newOption.multiselect} onChange={(e) => setNewOption({ ...newOption, multiselect: e.target.checked })} />
+                                            <label htmlFor="multiselect" className="text-sm text-gray-700">Multi-select</label>
+                                        </div>
+                                        {newOption.multiselect && (
+                                            <>
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 mb-1">Selection Rule</label>
+                                                    <select className="w-full border border-gray-300 rounded-md px-3 py-2" value={newOption.multiselectRule} onChange={(e) => setNewOption({ ...newOption, multiselectRule: e.target.value })}>
+                                                        <option value="no_restriction">No restriction</option>
+                                                        <option value="at_least">Must choose at least</option>
+                                                        <option value="at_most">Must choose at most</option>
+                                                        <option value="exactly">Must choose exactly</option>
+                                                    </select>
+                                                </div>
+                                                {newOption.multiselectRule !== 'no_restriction' && (
+                                                    <div>
+                                                        <label className="block text-sm font-medium text-gray-700 mb-1">Number</label>
+                                                        <input type="number" className="w-full border border-gray-300 rounded-md px-3 py-2" value={newOption.multiselectValue} onChange={(e) => setNewOption({ ...newOption, multiselectValue: e.target.value })} min="1" />
+                                                    </div>
+                                                )}
+                                            </>
+                                        )}
                                     </>
                                 )}
+
+                                {/* Image Swatches */}
                                 {newOption.type === 'imageSwatches' && (
                                     <>
-                                        <div><label className="block text-sm font-medium text-gray-700 mb-1">Image values (label:url)</label><textarea rows={2} className="w-full border border-gray-300 rounded-md px-3 py-2" value={newOption.imageValues} onChange={(e) => setNewOption({ ...newOption, imageValues: e.target.value })} placeholder="Blue:https://example.com/blue.jpg, Red:https://example.com/red.jpg" /></div>
-                                        <div><label className="block text-sm font-medium text-gray-700 mb-1">Preselect this value</label><input type="text" className="w-full border border-gray-300 rounded-md px-3 py-2" value={newOption.preselectValue} onChange={(e) => setNewOption({ ...newOption, preselectValue: e.target.value })} placeholder="Label" /></div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Image Values</label>
+                                            {imageItems.map((item, idx) => (
+                                                <div key={idx} className="flex items-center gap-2 mb-2">
+                                                    {item.file ? (
+                                                        <img src={URL.createObjectURL(item.file)} alt={item.label} className="w-10 h-10 object-cover rounded" />
+                                                    ) : (
+                                                        <img src={item.imageUrl} alt={item.label} className="w-10 h-10 object-cover rounded" />
+                                                    )}
+                                                    <span className="text-sm">{item.label}</span>
+                                                    <button onClick={() => {
+                                                        const newItems = [...imageItems];
+                                                        newItems.splice(idx, 1);
+                                                        setImageItems(newItems);
+                                                    }} className="text-red-500 hover:text-red-700 text-xs">Remove</button>
+                                                </div>
+                                            ))}
+                                            <div className="flex gap-2 mt-2 items-start">
+                                                <input type="text" placeholder="Label" className="border rounded px-2 py-1 text-sm w-24" id="imageLabel" />
+                                                <input type="file" accept="image/*" id="imageFile" onChange={() => { }} />
+                                                <button onClick={() => {
+                                                    const label = document.getElementById('imageLabel').value.trim();
+                                                    const fileInput = document.getElementById('imageFile');
+                                                    const file = fileInput.files[0];
+                                                    if (!label || !file) return alert('Enter label and choose a file');
+                                                    setImageItems([...imageItems, { label, file }]);
+                                                    document.getElementById('imageLabel').value = '';
+                                                    fileInput.value = '';
+                                                }} className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-sm">Add Value</button>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Preselect this value</label>
+                                            <input type="text" className="w-full border border-gray-300 rounded-md px-3 py-2" value={newOption.preselectValue} onChange={(e) => setNewOption({ ...newOption, preselectValue: e.target.value })} placeholder="Label" />
+                                        </div>
+                                        <div className="flex items-center gap-2 mt-3">
+                                            <input type="checkbox" id="multiselect" checked={newOption.multiselect} onChange={(e) => setNewOption({ ...newOption, multiselect: e.target.checked })} />
+                                            <label htmlFor="multiselect" className="text-sm text-gray-700">Multi-select</label>
+                                        </div>
+                                        {newOption.multiselect && (
+                                            <>
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 mb-1">Selection Rule</label>
+                                                    <select className="w-full border border-gray-300 rounded-md px-3 py-2" value={newOption.multiselectRule} onChange={(e) => setNewOption({ ...newOption, multiselectRule: e.target.value })}>
+                                                        <option value="no_restriction">No restriction</option>
+                                                        <option value="at_least">Must choose at least</option>
+                                                        <option value="at_most">Must choose at most</option>
+                                                        <option value="exactly">Must choose exactly</option>
+                                                    </select>
+                                                </div>
+                                                {newOption.multiselectRule !== 'no_restriction' && (
+                                                    <div>
+                                                        <label className="block text-sm font-medium text-gray-700 mb-1">Number</label>
+                                                        <input type="number" className="w-full border border-gray-300 rounded-md px-3 py-2" value={newOption.multiselectValue} onChange={(e) => setNewOption({ ...newOption, multiselectValue: e.target.value })} min="1" />
+                                                    </div>
+                                                )}
+                                            </>
+                                        )}
                                     </>
                                 )}
+
                                 {newOption.type === 'grid' && (
                                     <>
                                         <div><label className="block text-sm font-medium text-gray-700 mb-1">X-Axis Title</label><input type="text" className="w-full border border-gray-300 rounded-md px-3 py-2" value={newOption.xAxisTitle} onChange={(e) => setNewOption({ ...newOption, xAxisTitle: e.target.value })} /></div>
@@ -906,6 +1404,7 @@ const VirtualOptions = () => {
                                         <div><label className="block text-sm font-medium text-gray-700 mb-1">Y-Axis Keys (comma)</label><input type="text" className="w-full border border-gray-300 rounded-md px-3 py-2" value={newOption.yAxisKeys} onChange={(e) => setNewOption({ ...newOption, yAxisKeys: e.target.value })} placeholder="Red, Blue, Green" /></div>
                                     </>
                                 )}
+
                                 {newOption.type === 'instructions' && (
                                     <div><label className="block text-sm font-medium text-gray-700 mb-1">HTML Content</label><textarea rows={4} className="w-full border border-gray-300 rounded-md px-3 py-2 font-mono text-sm" value={newOption.htmlContent} onChange={(e) => setNewOption({ ...newOption, htmlContent: e.target.value })} placeholder='<a href="https://www.google.com">Click me</a>' /><p className="text-xs text-gray-500 mt-1">Script tags aren't allowed</p></div>
                                 )}
