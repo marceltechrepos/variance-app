@@ -60,6 +60,11 @@ const VirtualOptions = () => {
     // Image items for imageSwatches modal – holds both existing URLs and new files
     const [imageItems, setImageItems] = useState([]); // { label, imageUrl?, file? }
 
+    const [isModalLoading, setIsModalLoading] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    const [deletingId, setDeletingId] = useState(null);
+
     const [searchParams] = useSearchParams();
     const productId = searchParams.get("productId");
 
@@ -334,6 +339,7 @@ const VirtualOptions = () => {
     };
 
     const saveOption = async () => {
+
         let savedOption;
         const id = editingId || generateId();
 
@@ -517,159 +523,13 @@ const VirtualOptions = () => {
         }
 
         // Save to backend
-        saveToBackendWithOptions(editingId
+        await saveToBackendWithOptions(editingId
             ? virtualOptions.map(opt => (opt.id === editingId ? savedOption : opt))
             : [...virtualOptions, savedOption]
         );
 
         setIsModalOpen(false);
     };
-
-    // const saveOption = async () => {
-    //     let savedOption;
-    //     const id = editingId || generateId();
-
-    //     if (newOption.type === 'dropdown' || newOption.type === 'radio') {
-    //         savedOption = {
-    //             id,
-    //             title: newOption.title,
-    //             type: newOption.type,
-    //             required: newOption.required,
-    //             values: newOption.values.split(',').map(v => v.trim()),
-    //             preselectValue: newOption.preselectValue,
-    //         };
-    //     } else if (newOption.type === 'buttons') {
-    //         savedOption = {
-    //             id,
-    //             title: newOption.title,
-    //             type: 'buttons',
-    //             required: newOption.required,
-    //             values: newOption.values.split(',').map(v => v.trim()),
-    //             preselectValue: newOption.preselectValue,
-    //             multiselect: newOption.multiselect,
-    //             multiselectRule: newOption.multiselectRule || 'no_restriction',
-    //             multiselectValue: newOption.multiselectRule !== 'no_restriction' ? parseInt(newOption.multiselectValue) || null : null,
-    //         };
-    //     } else if (newOption.type === 'checkboxes') {
-    //         savedOption = {
-    //             id,
-    //             title: newOption.title,
-    //             type: 'checkboxes',
-    //             required: newOption.required,
-    //             values: newOption.values.split(',').map(v => v.trim()),
-    //             preselectValues: newOption.preselectValues ? newOption.preselectValues.split(',').map(v => v.trim()) : [],
-    //             multiselect: newOption.multiselect,
-    //             multiselectRule: newOption.multiselectRule || 'no_restriction',
-    //             multiselectValue: newOption.multiselectRule !== 'no_restriction' ? parseInt(newOption.multiselectValue) || null : null,
-    //         };
-    //     } else if (newOption.type === 'text') {
-    //         savedOption = {
-    //             id,
-    //             title: newOption.title,
-    //             type: 'text',
-    //             required: newOption.required,
-    //             maxLength: newOption.maxLength ? parseInt(newOption.maxLength) : undefined,
-    //             inputType: newOption.inputType,
-    //         };
-    //     } else if (newOption.type === 'longText') {
-    //         savedOption = {
-    //             id,
-    //             title: newOption.title,
-    //             type: 'longText',
-    //             required: newOption.required,
-    //             maxLength: newOption.maxLength ? parseInt(newOption.maxLength) : undefined,
-    //         };
-    //     } else if (newOption.type === 'fileUpload') {
-    //         savedOption = {
-    //             id,
-    //             title: newOption.title,
-    //             type: 'fileUpload',
-    //             required: newOption.required,
-    //         };
-    //     } else if (newOption.type === 'colorSwatches') {
-    //         savedOption = {
-    //             id,
-    //             title: newOption.title,
-    //             type: 'colorSwatches',
-    //             required: newOption.required,
-    //             colorValues: colorItems,
-    //             preselectValue: newOption.preselectValue,
-    //             multiselect: newOption.multiselect,
-    //             multiselectRule: newOption.multiselectRule || 'no_restriction',
-    //             multiselectValue: newOption.multiselectRule !== 'no_restriction' ? parseInt(newOption.multiselectValue) || null : null,
-    //         };
-    //     } else if (newOption.type === 'imageSwatches') {
-    //         // Upload all new files
-    //         const finalImageValues = [];
-    //         for (let item of imageItems) {
-    //             if (item.file) {
-    //                 const formData = new FormData();
-    //                 formData.append('file', item.file);
-    //                 try {
-    //                     const res = await fetch('/api/upload-image', {
-    //                         method: 'POST',
-    //                         body: formData
-    //                     });
-    //                     const data = await res.json();
-    //                     if (data.url) {
-    //                         finalImageValues.push({ label: item.label, imageUrl: data.url });
-    //                     } else {
-    //                         toast.error(`Upload failed for ${item.label}`);
-    //                     }
-    //                 } catch (err) {
-    //                     toast.error(`Upload failed for ${item.label}`);
-    //                 }
-    //             } else if (item.imageUrl) {
-    //                 finalImageValues.push({ label: item.label, imageUrl: item.imageUrl });
-    //             }
-    //         }
-    //         savedOption = {
-    //             id,
-    //             title: newOption.title,
-    //             type: 'imageSwatches',
-    //             required: newOption.required,
-    //             imageValues: finalImageValues,
-    //             preselectValue: newOption.preselectValue,
-    //             multiselect: newOption.multiselect,
-    //             multiselectRule: newOption.multiselectRule || 'no_restriction',
-    //             multiselectValue: newOption.multiselectRule !== 'no_restriction' ? parseInt(newOption.multiselectValue) || null : null,
-    //         };
-    //     } else if (newOption.type === 'grid') {
-    //         savedOption = {
-    //             id,
-    //             title: newOption.title,
-    //             type: 'grid',
-    //             required: newOption.required,
-    //             xAxisTitle: newOption.xAxisTitle,
-    //             xAxisKeys: newOption.xAxisKeys.split(',').map(k => k.trim()),
-    //             yAxisTitle: newOption.yAxisTitle,
-    //             yAxisKeys: newOption.yAxisKeys.split(',').map(k => k.trim()),
-    //         };
-    //     } else {
-    //         // instructions
-    //         savedOption = {
-    //             id,
-    //             title: newOption.title,
-    //             type: 'instructions',
-    //             required: newOption.required,
-    //             htmlContent: newOption.htmlContent,
-    //         };
-    //     }
-
-    //     if (editingId) {
-    //         setVirtualOptions(virtualOptions.map(opt => (opt.id === editingId ? savedOption : opt)));
-    //     } else {
-    //         setVirtualOptions([...virtualOptions, savedOption]);
-    //     }
-
-    //     // Save to backend
-    //     saveToBackendWithOptions(editingId
-    //         ? virtualOptions.map(opt => (opt.id === editingId ? savedOption : opt))
-    //         : [...virtualOptions, savedOption]
-    //     );
-
-    //     setIsModalOpen(false);
-    // };
 
     const saveToBackendWithOptions = async (optionsToSave) => {
         if (!productId) return;
@@ -696,9 +556,47 @@ const VirtualOptions = () => {
     };
 
     // Delete option
+    // const deleteOption = async (id) => {
+    //     if (!productId) return;
+    //     setIsDeleting(true);
+    //     try {
+    //         const res = await fetch(`/api/virtual-options/${productId}/${id}`, {
+    //             method: 'DELETE'
+    //         });
+    //         const data = await res.json();
+    //         if (data.success) {
+    //             toast.success("Option Deleted Successfully!");
+    //             setVirtualOptions(data.options);
+    //             const newSelections = { ...selections };
+    //             delete newSelections[id];
+    //             setSelections(newSelections);
+    //             const newCheckboxSelections = { ...checkboxSelections };
+    //             delete newCheckboxSelections[id];
+    //             setCheckboxSelections(newCheckboxSelections);
+    //             const newPreviewSelections = { ...previewSelections };
+    //             delete newPreviewSelections[id];
+    //             setPreviewSelections(newPreviewSelections);
+    //             const newPreviewCb = { ...previewCheckboxSelections };
+    //             delete newPreviewCb[id];
+    //             setPreviewCheckboxSelections(newPreviewCb);
+    //             const newMultiSel = { ...multiSelections };
+    //             delete newMultiSel[id];
+    //             setMultiSelections(newMultiSel);
+    //             const newPreviewMultiSel = { ...previewMultiSelections };
+    //             delete newPreviewMultiSel[id];
+    //             setPreviewMultiSelections(newPreviewMultiSel);
+    //         }
+    //     } catch (err) {
+    //         toast.error("An error occurred while deleting the option.");
+    //         console.error(err);
+    //     } finally {
+    //         setIsDeleting(false);
+    //     }
+    // };
+
     const deleteOption = async (id) => {
         if (!productId) return;
-
+        setDeletingId(id); // 👈 specific ID ke liye loading
         try {
             const res = await fetch(`/api/virtual-options/${productId}/${id}`, {
                 method: 'DELETE'
@@ -707,6 +605,7 @@ const VirtualOptions = () => {
             if (data.success) {
                 toast.success("Option Deleted Successfully!");
                 setVirtualOptions(data.options);
+                // Cleanup states
                 const newSelections = { ...selections };
                 delete newSelections[id];
                 setSelections(newSelections);
@@ -729,6 +628,8 @@ const VirtualOptions = () => {
         } catch (err) {
             toast.error("An error occurred while deleting the option.");
             console.error(err);
+        } finally {
+            setDeletingId(null);
         }
     };
 
@@ -836,12 +737,11 @@ const VirtualOptions = () => {
                         })}
                     </div>
                 );
-
             case 'radio':
                 return (
-                    <div className="space-y-1">
+                    <div className="flex flex-wrap gap-3">
                         {option.values.map(v => (
-                            <label key={v} className="flex items-center gap-2 text-sm">
+                            <label key={v} className="flex items-center gap-2 text-sm whitespace-nowrap">
                                 <input
                                     type="radio"
                                     name={`${id}${isPreview ? '-preview' : ''}`}
@@ -857,9 +757,9 @@ const VirtualOptions = () => {
 
             case 'checkboxes':
                 return (
-                    <div className="space-y-1">
+                    <div className="flex flex-wrap gap-3">
                         {option.values.map(v => (
-                            <label key={v} className="flex items-center gap-2 text-sm">
+                            <label key={v} className="flex items-center gap-2 text-sm whitespace-nowrap">
                                 <input
                                     type="checkbox"
                                     value={v}
@@ -871,7 +771,6 @@ const VirtualOptions = () => {
                         ))}
                     </div>
                 );
-
             case 'text':
                 return (
                     <input
@@ -916,7 +815,7 @@ const VirtualOptions = () => {
 
             case 'colorSwatches':
                 return (
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-3">
                         {option.colorValues.map(item => {
                             const selectedInMulti = option.multiselect
                                 ? (isPreview ? previewMultiSelections[id]?.includes(item.label) : multiSelections[id]?.includes(item.label))
@@ -935,11 +834,18 @@ const VirtualOptions = () => {
                                             setValue(item.label);
                                         }
                                     }}
-                                    className={`w-8 h-8 rounded-full border-2 ${isSelected ? 'border-blue-600 ring-2 ring-blue-300' : 'border-gray-300'
-                                        }`}
-                                    style={{ backgroundColor: item.color }}
+                                    className="flex flex-col items-center gap-1 group"
                                     title={item.label}
-                                />
+                                >
+                                    <div
+                                        className={`w-8 h-8 rounded-full border-2 transition-all ${isSelected ? 'border-blue-600 ring-2 ring-blue-300 scale-110' : 'border-gray-300 group-hover:scale-105'
+                                            }`}
+                                        style={{ backgroundColor: item.color }}
+                                    />
+                                    <span className={`text-xs font-medium ${isSelected ? 'text-blue-600' : 'text-gray-600'}`}>
+                                        {item.label}
+                                    </span>
+                                </button>
                             );
                         })}
                     </div>
@@ -1035,7 +941,7 @@ const VirtualOptions = () => {
                                     <Text as="h3" variant="headingMd" style={{ marginBottom: "0", fontWeight: "700", color: "#111827" }}>
                                         Duplicate
                                     </Text>
-                                    <Text variant="bodySm" tone="subdued" style={{ lineHeight: "1.6", maxWidth: "220px" }}>
+                                    <Text className="text-sm text-gray-500" variant="bodySm" tone="subdued" style={{ lineHeight: "1.6", maxWidth: "220px" }}>
                                         Duplicate settings from one product to others efficiently
                                     </Text>
                                 </Box>
@@ -1050,7 +956,7 @@ const VirtualOptions = () => {
                                     <Text as="h3" variant="headingMd" style={{ marginBottom: "0", fontWeight: "700", color: "#111827" }}>
                                         Settings
                                     </Text>
-                                    <Text variant="bodySm" tone="subdued" style={{ lineHeight: "1.6", maxWidth: "220px" }}>
+                                    <Text className="text-sm text-gray-500" style={{ lineHeight: "1.6", maxWidth: "220px" }}>
                                         Change settings for how the app looks and functions
                                     </Text>
                                 </Box>
@@ -1075,7 +981,7 @@ const VirtualOptions = () => {
                 </Layout.Section>
 
                 {/* Shopify Options Section */}
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6 mt-6">
+                {/* <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6 mt-6">
                     <div className="px-5 py-4 border-b border-gray-200 flex justify-between items-center">
                         <div>
                             <h2 className="text-lg font-semibold text-gray-800">Shopify Options</h2>
@@ -1093,9 +999,9 @@ const VirtualOptions = () => {
                             <a href="#" className="text-sm text-blue-600 hover:underline">Edit Shopify Options in Shopify</a>
                         </div>
                     </div>
-                </div>
+                </div> */}
 
-                <div className="flex flex-col lg:flex-row gap-6 mb-6">
+                <div className="flex flex-col lg:flex-row gap-6 mb-6 mt-5">
                     {/* Virtual Options Section - Left Side */}
                     <div className="lg:w-1/2 bg-white rounded-lg shadow-sm border border-gray-200">
                         <div className="px-5 py-4 border-b border-gray-200">
@@ -1104,31 +1010,57 @@ const VirtualOptions = () => {
                         </div>
                         <div className="p-5 space-y-5">
                             {virtualOptions.map(option => (
-                                <div key={option.id} className="border-b border-gray-100 pb-4 last:border-0">
-                                    <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                                        <div style={{ marginRight: "-40px" }} className="sm:w-32 flex items-center gap-2">
-                                            <span className="text-sm font-medium text-gray-700">{option.title}</span>
-                                            {option.required && <span className="text-xs text-red-500 bg-red-50 px-0.5 py-0.5 rounded whitespace-nowrap">*</span>}
-                                        </div>
-                                        <div className="flex-1">
-                                            {renderOptionControl(option, false)}
-                                        </div>
-                                        <div className="flex gap-2 items-center">
-                                            <button onClick={() => openEditModal(option)} className="cursor-pointer text-blue-600 hover:text-blue-800 p-1 rounded hover:bg-blue-50 transition" title="Edit">
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                <div key={option.id} className="border border-gray-200 rounded-lg p-4 bg-white shadow-sm hover:shadow-md transition">
+                                    {/* Title and required badge on top */}
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <span className="text-sm font-bold text-gray-900">{option.title}</span>
+                                        {option.required && <span className="text-xs text-red-500 bg-red-50 px-1.5 py-0.5 rounded-full">*</span>}
+                                    </div>
+
+                                    {/* Value/Input field below */}
+                                    <div className="mb-3">
+                                        {renderOptionControl(option, false)}
+                                    </div>
+
+                                    {/* Edit/Delete buttons at bottom */}
+                                    <div className="flex gap-2 items-center justify-end pt-2 border-t border-gray-100">
+                                        <button onClick={() => openEditModal(option)} className="cursor-pointer text-blue-600 hover:text-blue-800 p-1 rounded hover:bg-blue-50 transition" title="Edit">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                            </svg>
+                                        </button>
+                                        {/* <button onClick={() => deleteOption(option.id)} className="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-50 transition cursor-pointer" title="Delete">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                        </button> */}
+                                        <button
+                                            onClick={() => deleteOption(option.id)}
+                                            className="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-50 transition cursor-pointer"
+                                            title="Delete"
+                                            disabled={deletingId === option.id}
+                                        >
+                                            {deletingId === option.id ? (
+                                                <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                                 </svg>
-                                            </button>
-                                            <button onClick={() => deleteOption(option.id)} className="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-50 transition cursor-pointer" title="Delete">
+                                            ) : (
                                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                                 </svg>
-                                            </button>
-                                        </div>
+                                            )}
+                                        </button>
                                     </div>
                                 </div>
                             ))}
-                            <button onClick={openAddModal} className="w-full mt-2 bg-blue-50 text-blue-700 border border-blue-200 py-2 rounded-md hover:bg-blue-100 transition font-medium text-sm cursor-pointer">
+                            {/* <button onClick={openAddModal} className="w-full mt-2 bg-blue-50 text-blue-700 border border-blue-200 py-2 rounded-md hover:bg-blue-100 transition font-medium text-sm cursor-pointer">
+                                + ADD Virtual Options
+                            </button> */}
+                            <button
+                                onClick={openAddModal}
+                                className="w-full mt-2 bg-blue-50 text-blue-700 border border-blue-200 py-2 rounded-md hover:bg-blue-100 transition font-medium text-sm cursor-pointer"
+                            >
                                 + ADD Virtual Options
                             </button>
                             <p className="text-xs text-gray-400 text-center pt-1">
@@ -1146,12 +1078,14 @@ const VirtualOptions = () => {
                             </div>
                             <div className="p-5 space-y-4">
                                 {virtualOptions.map(option => (
-                                    <div key={`preview-${option.id}`} className="space-y-2">
-                                        <label className="text-sm font-medium text-gray-700">
+                                    <div key={`preview-${option.id}`} className="border border-gray-100 rounded-lg p-3 bg-gray-50">
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
                                             {option.title}:
                                             {option.required && <span className="text-red-500 ml-1">*</span>}
                                         </label>
-                                        {renderOptionControl(option, false, true)}
+                                        <div>
+                                            {renderOptionControl(option, false, true)}
+                                        </div>
                                     </div>
                                 ))}
                             </div>
@@ -1277,38 +1211,110 @@ const VirtualOptions = () => {
                                 {newOption.type === 'colorSwatches' && (
                                     <>
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">Color Values</label>
-                                            {colorItems.map((item, idx) => (
-                                                <div key={idx} className="flex items-center gap-2 mb-2">
-                                                    <span className="w-6 h-6 rounded-full border" style={{ backgroundColor: item.color }} />
-                                                    <span className="text-sm">{item.label}</span>
-                                                    <button onClick={() => {
-                                                        const newItems = [...colorItems];
-                                                        newItems.splice(idx, 1);
-                                                        setColorItems(newItems);
-                                                    }} className="text-red-500 hover:text-red-700 text-xs">Remove</button>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">Color Values</label>
+
+                                            {/* Existing colors grid - 3 per row */}
+                                            {colorItems.length > 0 && (
+                                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
+                                                    {colorItems.map((item, idx) => (
+                                                        <div key={idx} className="relative group border border-gray-200 rounded-lg overflow-hidden bg-gray-50 hover:shadow-md transition">
+                                                            <div className="flex flex-col items-center p-3">
+                                                                <div
+                                                                    className="w-12 h-12 rounded-full border-2 border-gray-200 shadow-sm mb-2"
+                                                                    style={{ backgroundColor: item.color }}
+                                                                />
+                                                                <span className="text-xs font-medium text-gray-700 truncate w-full text-center">{item.label}</span>
+                                                                <button
+                                                                    onClick={() => {
+                                                                        const newItems = [...colorItems];
+                                                                        newItems.splice(idx, 1);
+                                                                        setColorItems(newItems);
+                                                                    }}
+                                                                    className="absolute top-1 right-1 text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-50 transition"
+                                                                    title="Remove"
+                                                                >
+                                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                                    </svg>
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    ))}
                                                 </div>
-                                            ))}
-                                            <div className="flex gap-2 mt-2">
-                                                <input type="text" placeholder="Label" className="border rounded px-2 py-1 text-sm w-24" id="colorLabel" />
-                                                <input type="color" className="w-10 h-8 border rounded" id="colorPicker" />
-                                                <button onClick={() => {
-                                                    const label = document.getElementById('colorLabel').value.trim();
-                                                    const color = document.getElementById('colorPicker').value;
-                                                    if (label && color) {
-                                                        setColorItems([...colorItems, { label, color }]);
-                                                        document.getElementById('colorLabel').value = '';
-                                                    }
-                                                }} className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-sm">Add Value</button>
+                                            )}
+
+                                            {/* Add new color section */}
+                                            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 bg-gray-50">
+                                                <div className="space-y-3">
+                                                    <div className="flex flex-col sm:flex-row gap-3">
+                                                        <div>
+                                                            <label className="block text-xs text-gray-500 mb-1">Label</label>
+                                                            <input
+                                                                type="text"
+                                                                placeholder="e.g., Red"
+                                                                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                                                                id="colorLabel"
+                                                            />
+                                                        </div>
+                                                        <div className="flex-1">
+                                                            <label className="block text-xs text-gray-500 mb-1">Pick Color</label>
+                                                            <div className="flex items-center gap-3">
+                                                                <input
+                                                                    type="color"
+                                                                    className="w-12 h-10 border border-gray-300 rounded-lg cursor-pointer"
+                                                                    id="colorPicker"
+                                                                    defaultValue="#3b82f6"
+                                                                />
+                                                                <div className="flex items-end">
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            const label = document.getElementById('colorLabel').value.trim();
+                                                                            const color = document.getElementById('colorPicker').value;
+                                                                            if (!label) {
+                                                                                toast.error('Please enter a label');
+                                                                                return;
+                                                                            }
+                                                                            if (!color) {
+                                                                                toast.error('Please pick a color');
+                                                                                return;
+                                                                            }
+                                                                            setColorItems([...colorItems, { label, color }]);
+                                                                            document.getElementById('colorLabel').value = '';
+                                                                            document.getElementById('colorPicker').value = '#3b82f6';
+                                                                            document.getElementById('colorPreview').style.backgroundColor = '#3b82f6';
+                                                                        }}
+                                                                        className="cursor-pointer px-5 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition font-medium"
+                                                                    >
+                                                                        + Add Color
+                                                                    </button>
+                                                                </div>
+
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+
+                                                </div>
                                             </div>
                                         </div>
+
+                                        {/* Preselect this value */}
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-1">Preselect this value</label>
-                                            <input type="text" className="w-full border border-gray-300 rounded-md px-3 py-2" value={newOption.preselectValue} onChange={(e) => setNewOption({ ...newOption, preselectValue: e.target.value })} placeholder="Label" />
+                                            <input
+                                                type="text"
+                                                className="w-full border border-gray-300 rounded-md px-3 py-2"
+                                                value={newOption.preselectValue}
+                                                onChange={(e) => setNewOption({ ...newOption, preselectValue: e.target.value })}
+                                                placeholder="Enter label to preselect"
+                                            />
+                                            <p className="text-xs text-gray-400 mt-1">Enter the exact label of the color you want to preselect</p>
                                         </div>
+
+                                        {/* Multi-select options */}
                                         <div className="flex items-center gap-2 mt-3">
                                             <input type="checkbox" id="multiselect" checked={newOption.multiselect} onChange={(e) => setNewOption({ ...newOption, multiselect: e.target.checked })} />
-                                            <label htmlFor="multiselect" className="text-sm text-gray-700">Multi-select</label>
+                                            <label htmlFor="multiselect" className="text-sm text-gray-700">Allow multiple selection</label>
                                         </div>
                                         {newOption.multiselect && (
                                             <>
@@ -1336,43 +1342,141 @@ const VirtualOptions = () => {
                                 {newOption.type === 'imageSwatches' && (
                                     <>
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">Image Values</label>
-                                            {imageItems.map((item, idx) => (
-                                                <div key={idx} className="flex items-center gap-2 mb-2">
-                                                    {item.file ? (
-                                                        <img src={URL.createObjectURL(item.file)} alt={item.label} className="w-10 h-10 object-cover rounded" />
-                                                    ) : (
-                                                        <img src={item.imageUrl} alt={item.label} className="w-10 h-10 object-cover rounded" />
-                                                    )}
-                                                    <span className="text-sm">{item.label}</span>
-                                                    <button onClick={() => {
-                                                        const newItems = [...imageItems];
-                                                        newItems.splice(idx, 1);
-                                                        setImageItems(newItems);
-                                                    }} className="text-red-500 hover:text-red-700 text-xs">Remove</button>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">Image Values</label>
+
+                                            {/* Existing images grid - 3 per row */}
+                                            {imageItems.length > 0 && (
+                                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
+                                                    {imageItems.map((item, idx) => (
+                                                        <div key={idx} className="relative group border border-gray-200 rounded-lg overflow-hidden bg-gray-50 hover:shadow-md transition">
+                                                            <div className="w-20 h-20 mx-auto mt-2"> {/* Changed: fixed width/height */}
+                                                                {item.file ? (
+                                                                    <img src={URL.createObjectURL(item.file)} alt={item.label} className="w-full h-full object-cover rounded" />
+                                                                ) : (
+                                                                    <img src={item.imageUrl} alt={item.label} className="w-full h-full object-cover rounded" />
+                                                                )}
+                                                            </div>
+                                                            <div className="p-2 bg-white border-t border-gray-100">
+                                                                <div className="flex items-center justify-between">
+                                                                    <span className="text-xs font-medium text-gray-700 truncate flex-1">{item.label}</span>
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            const newItems = [...imageItems];
+                                                                            newItems.splice(idx, 1);
+                                                                            setImageItems(newItems);
+                                                                        }}
+                                                                        className="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-50 transition"
+                                                                        title="Remove"
+                                                                    >
+                                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                                        </svg>
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    ))}
                                                 </div>
-                                            ))}
-                                            <div className="flex gap-2 mt-2 items-start">
-                                                <input type="text" placeholder="Label" className="border rounded px-2 py-1 text-sm w-24" id="imageLabel" />
-                                                <input type="file" accept="image/*" id="imageFile" onChange={() => { }} />
-                                                <button onClick={() => {
-                                                    const label = document.getElementById('imageLabel').value.trim();
-                                                    const fileInput = document.getElementById('imageFile');
-                                                    const file = fileInput.files[0];
-                                                    if (!label || !file) return alert('Enter label and choose a file');
-                                                    setImageItems([...imageItems, { label, file }]);
-                                                    document.getElementById('imageLabel').value = '';
-                                                    fileInput.value = '';
-                                                }} className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-sm">Add Value</button>
+                                            )}
+
+                                            {/* Add new image section - improved design */}
+                                            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 bg-gray-50">
+                                                <div className="space-y-3">
+                                                    <div>
+                                                        <label className="block text-xs text-gray-500 mb-1">Label</label>
+                                                        <input
+                                                            type="text"
+                                                            placeholder="e.g., Front view"
+                                                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                                                            id="imageLabel"
+                                                        />
+                                                    </div>
+                                                    <div className="flex flex-col sm:flex-row gap-3">
+                                                        <div className="flex-1">
+                                                            <label className="block text-xs text-gray-500 mb-1">Upload Image</label>
+                                                            <div className="flex items-center gap-2">
+                                                                <label className="flex-1 cursor-pointer">
+                                                                    <div className="border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-500 bg-white hover:bg-gray-50 transition text-center">
+                                                                        Choose File
+                                                                    </div>
+                                                                    <input
+                                                                        type="file"
+                                                                        accept="image/*"
+                                                                        className="hidden"
+                                                                        id="imageFile"
+                                                                        onChange={() => {
+                                                                            const fileInput = document.getElementById('imageFile');
+                                                                            const file = fileInput.files[0];
+                                                                            if (file) {
+                                                                                const previewImg = document.getElementById('imagePreviewFile');
+                                                                                const url = URL.createObjectURL(file);
+                                                                                previewImg.src = url;
+                                                                                previewImg.classList.remove('hidden');
+                                                                            }
+                                                                        }}
+                                                                    />
+                                                                </label>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-end">
+                                                            <button
+                                                                onClick={() => {
+                                                                    const label = document.getElementById('imageLabel').value.trim();
+                                                                    const fileInput = document.getElementById('imageFile');
+                                                                    const file = fileInput.files[0];
+                                                                    if (!label) {
+                                                                        toast.error('Please enter a label');
+                                                                        return;
+                                                                    }
+                                                                    if (!file) {
+                                                                        toast.error('Please choose an image file');
+                                                                        return;
+                                                                    }
+                                                                    setImageItems([...imageItems, { label, file }]);
+                                                                    document.getElementById('imageLabel').value = '';
+                                                                    fileInput.value = '';
+                                                                    const previewImg = document.getElementById('imagePreviewFile');
+                                                                    previewImg.src = '';
+                                                                    previewImg.classList.add('hidden');
+                                                                }}
+                                                                className="px-5 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition font-medium cursor-pointer"
+                                                            >
+                                                                + Add Image
+                                                            </button>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Image preview while selecting */}
+                                                    <div className="pt-2">
+                                                        <div className="text-xs text-gray-500 mb-1">Preview</div>
+                                                        <div className="w-20 h-20 border-2 border-gray-200 rounded-lg overflow-hidden bg-white flex items-center justify-center">
+                                                            <img id="imagePreviewFile" className="w-full h-full object-cover hidden" />
+                                                            <svg className="w-8 h-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                            </svg>
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
+
+                                        {/* Preselect this value */}
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-1">Preselect this value</label>
-                                            <input type="text" className="w-full border border-gray-300 rounded-md px-3 py-2" value={newOption.preselectValue} onChange={(e) => setNewOption({ ...newOption, preselectValue: e.target.value })} placeholder="Label" />
+                                            <input
+                                                type="text"
+                                                className="w-full border border-gray-300 rounded-md px-3 py-2"
+                                                value={newOption.preselectValue}
+                                                onChange={(e) => setNewOption({ ...newOption, preselectValue: e.target.value })}
+                                                placeholder="Enter label to preselect"
+                                            />
+                                            <p className="text-xs text-gray-400 mt-1">Enter the exact label of the image you want to preselect</p>
                                         </div>
+
+                                        {/* Multi-select options */}
                                         <div className="flex items-center gap-2 mt-3">
                                             <input type="checkbox" id="multiselect" checked={newOption.multiselect} onChange={(e) => setNewOption({ ...newOption, multiselect: e.target.checked })} />
-                                            <label htmlFor="multiselect" className="text-sm text-gray-700">Multi-select</label>
+                                            <label htmlFor="multiselect" className="text-sm text-gray-700">Allow multiple selection</label>
                                         </div>
                                         {newOption.multiselect && (
                                             <>
@@ -1410,9 +1514,35 @@ const VirtualOptions = () => {
                                 )}
                             </div>
                             <div className="flex justify-end gap-3 mt-6">
-                                <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">Cancel</button>
-                                <button onClick={saveOption} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">{editingId ? 'Update' : 'Create'}</button>
+                                <button
+                                    onClick={() => setIsModalOpen(false)}
+                                    className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 cursor-pointer"
+                                    disabled={isModalLoading}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={saveOption}
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 cursor-pointer flex items-center gap-2"
+                                    disabled={saveStatus === 'saving'}
+                                >
+                                    {saveStatus === 'saving' ? (
+                                        <>
+                                            <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                            Saving...
+                                        </>
+                                    ) : (
+                                        editingId ? 'Update' : 'Create'
+                                    )}
+                                </button>
                             </div>
+                            {/* <div className="flex justify-end gap-3 mt-6">
+                                <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 cursor-pointer" disabled={isModalLoading}>Cancel</button>
+                                <button onClick={saveOption} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 cursor-pointer">{editingId ? 'Update' : 'Create'}</button>
+                            </div> */}
                         </div>
                     </div>
                 </div>
