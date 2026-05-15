@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Page,
   Layout,
@@ -21,7 +21,53 @@ export default function HomePage() {
   const [selectedProductId, setSelectedProductId] = useState(null);
   const [showUpgradeBanner, setShowUpgradeBanner] = useState(true);
 
+  const [recentProducts, setRecentProducts] = useState([]);
+  const [isLoadingRecent, setIsLoadingRecent] = useState(true);
+
+  const [stats, setStats] = useState({
+    totalProducts: 0,
+    productsWithVariants: 0,
+    productsWithCustomOptions: 0
+  });
+  const [isLoadingStats, setIsLoadingStats] = useState(true);
+  console.log(stats, "<<<< stats")
+
   const navigate = useNavigate();
+
+  // Add useEffect to fetch stats
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response = await fetch("/api/dashboard/stats");
+        const data = await response.json();
+        if (data.success) {
+          setStats(data.stats);
+        }
+      } catch (error) {
+        console.error("Error fetching stats:", error);
+      } finally {
+        setIsLoadingStats(false);
+      }
+    };
+    fetchStats();
+  }, []);
+
+  useEffect(() => {
+    const fetchRecentProducts = async () => {
+      try {
+        const response = await fetch("/api/recently-saved");
+        const data = await response.json();
+        if (data.success) {
+          setRecentProducts(data.products);
+        }
+      } catch (error) {
+        console.error("Error fetching recent products:", error);
+      } finally {
+        setIsLoadingRecent(false);
+      }
+    };
+    fetchRecentProducts();
+  }, []);
 
 
   const handleCloseProductModal = () => {
@@ -198,7 +244,7 @@ export default function HomePage() {
                     Total Products
                   </Text>
                   <Text as="p" style={{ fontSize: "48px", fontWeight: "800", color: "#0f172a", margin: "0" }}>
-                    17
+                    {isLoadingStats ? "..." : stats.totalProducts}
                   </Text>
                 </Box>
               </Card>
@@ -207,10 +253,10 @@ export default function HomePage() {
               <Card>
                 <Box padding="8" style={{ textAlign: "center", minHeight: "220px", borderTop: "5px solid #10b981", display: "flex", flexDirection: "column", justifyContent: "center", gap: "10px", borderRadius: "0 0 8px 8px" }}>
                   <Text as="h3" variant="bodySm" style={{ marginBottom: "0", fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.1em" }}>
-                    With Variants
+                    Products with Variants
                   </Text>
                   <Text as="p" style={{ fontSize: "48px", fontWeight: "800", color: "#0f172a", margin: "0" }}>
-                    3
+                    {isLoadingStats ? "..." : stats.productsWithVariants}
                   </Text>
                 </Box>
               </Card>
@@ -219,10 +265,10 @@ export default function HomePage() {
               <Card>
                 <Box padding="8" style={{ textAlign: "center", minHeight: "220px", borderTop: "5px solid #f59e0b", display: "flex", flexDirection: "column", justifyContent: "center", gap: "10px", borderRadius: "0 0 8px 8px" }}>
                   <Text as="h3" variant="bodySm" style={{ marginBottom: "0", fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.1em" }}>
-                    Custom Options
+                    Products with Custom Options
                   </Text>
                   <Text as="p" style={{ fontSize: "48px", fontWeight: "800", color: "#0f172a", margin: "0" }}>
-                    2
+                    {isLoadingStats ? "..." : stats.productsWithCustomOptions}
                   </Text>
                 </Box>
               </Card>
@@ -381,40 +427,62 @@ export default function HomePage() {
               <Text as="h3" variant="headingMd" style={{ marginBottom: "12px", fontWeight: "700", color: "#111827" }}>
                 Recently Saved Products
               </Text>
-              <Text variant="bodySm" tone="subdued" style={{ marginBottom: "24px", lineHeight: "1.6" }}>
-                *App settings will not be visible on grayed out products below. <Link url="#">Click here to upgrade the plan for unlimited products.</Link>
-              </Text>
               <Box style={{ overflowX: "auto", border: '1px solid #f1f5f9', borderRadius: '8px' }}>
-                <table style={{ width: "100%", minWidth: "560px", borderCollapse: "collapse" }}>
-                  <thead>
-                    <tr style={{ backgroundColor: "#f8fafc" }}>
-                      <th style={{ textAlign: "left", padding: "16px 20px", fontWeight: "700", color: "#475569", fontSize: "13px", textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: "1px solid #e2e8f0" }}>
-                        Product Title
-                      </th>
-                      <th style={{ textAlign: "left", padding: "16px 20px", fontWeight: "700", color: "#475569", fontSize: "13px", textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: "1px solid #e2e8f0" }}>
-                        URL Handle
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr style={{ borderBottom: "1px solid #f1f5f9" }}>
-                      <td style={{ padding: "16px 20px" }}>
-                        <Link url="#" removeUnderline><Text variant="bodyMd" style={{ fontWeight: '500', color: '#2563eb' }}>The Collection Snowboard: Hydrogen</Text></Link>
-                      </td>
-                      <td style={{ padding: "16px 20px" }}>
-                        <Text variant="bodySm" style={{ color: '#64748b', fontFamily: 'monospace', backgroundColor: '#f1f5f9', padding: '2px 6px', borderRadius: '4px' }}>the-collection-snowboard-hydrogen</Text>
-                      </td>
-                    </tr>
-                    <tr style={{ backgroundColor: "#fcfcfd", borderBottom: "1px solid #f1f5f9" }}>
-                      <td style={{ padding: "16px 20px" }}>
-                        <Link url="#" removeUnderline><Text variant="bodyMd" style={{ fontWeight: '500', color: '#2563eb' }}>The Collection Snowboard: Liquid</Text></Link>
-                      </td>
-                      <td style={{ padding: "16px 20px" }}>
-                        <Text variant="bodySm" style={{ color: '#64748b', fontFamily: 'monospace', backgroundColor: '#f1f5f9', padding: '2px 6px', borderRadius: '4px' }}>the-collection-snowboard-liquid</Text>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
+                {isLoadingRecent ? (
+                  <Box padding="10" style={{ textAlign: "center" }}>
+                    <Text variant="bodyMd">Loading...</Text>
+                  </Box>
+                ) : recentProducts.length === 0 ? (
+                  <Box padding="10" style={{ textAlign: "center" }}>
+                    <Text variant="bodyMd">No saved products yet. Add virtual options to a product to see it here.</Text>
+                  </Box>
+                ) : (
+                  <table style={{ width: "100%", minWidth: "560px", borderCollapse: "collapse" }}>
+                    <thead>
+                      <tr style={{ backgroundColor: "#f8fafc" }}>
+                        <th style={{ textAlign: "left", padding: "16px 20px", fontWeight: "700", color: "#475569", fontSize: "13px", textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: "1px solid #e2e8f0" }}>
+                          Product Title
+                        </th>
+                        <th style={{ textAlign: "left", padding: "16px 20px", fontWeight: "700", color: "#475569", fontSize: "13px", textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: "1px solid #e2e8f0" }}>
+                          URL Handle
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {recentProducts.map((product, index) => (
+                        <tr
+                          key={product.id}
+                          style={{
+                            borderBottom: index < recentProducts.length - 1 ? "1px solid #f1f5f9" : "none",
+                            backgroundColor: index % 2 === 0 ? "#ffffff" : "#fcfcfd",
+                            cursor: "pointer"
+                          }}
+                          onClick={() => navigate(`/virtualoptions?productId=${product.id}`)}
+                        >
+                          <td style={{ padding: "16px 20px" }}>
+                            <Link
+                              
+                              removeUnderline
+                              onClick={(e) => {
+                                e.preventDefault();
+                                navigate(`/virtualoptions?productId=${product.id}`);
+                              }}
+                            >
+                              <Text variant="bodyMd" style={{ fontWeight: '500', color: '#2563eb' }}>
+                                {product.title}
+                              </Text>
+                            </Link>
+                          </td>
+                          <td style={{ padding: "16px 20px" }}>
+                            <Text variant="bodySm" style={{ color: '#64748b', fontFamily: 'monospace', backgroundColor: '#f1f5f9', padding: '2px 6px', borderRadius: '4px', display: 'inline-block' }}>
+                              {product.handle}
+                            </Text>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
               </Box>
             </Box>
           </Card>

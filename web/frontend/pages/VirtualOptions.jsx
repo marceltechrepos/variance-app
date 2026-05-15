@@ -11,7 +11,7 @@ import {
     Modal,
 } from "@shopify/polaris";
 import { TitleBar } from "@shopify/app-bridge-react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from 'react-toastify';
 
 // Helper to generate unique ID
@@ -40,6 +40,8 @@ const VirtualOptions = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingId, setEditingId] = useState(null);
 
+    const navigate = useNavigate();
+
     // Preview state for user selections (what customer selects)
     const [selections, setSelections] = useState({});
     const [checkboxSelections, setCheckboxSelections] = useState({});
@@ -53,6 +55,8 @@ const VirtualOptions = () => {
     const [previewSelections, setPreviewSelections] = useState({});
     const [previewCheckboxSelections, setPreviewCheckboxSelections] = useState({});
     const [previewFileNames, setPreviewFileNames] = useState({});
+    const [productTitle, setProductTitle] = useState('');
+    const [productHandle, setProductHandle] = useState('')
 
     // Color items (for colorSwatches modal)
     const [colorItems, setColorItems] = useState([]);
@@ -67,6 +71,7 @@ const VirtualOptions = () => {
 
     const [searchParams] = useSearchParams();
     const productId = searchParams.get("productId");
+    const [shopDomain, setShopDomain] = useState('');
 
     // Load virtual options for this product
     useEffect(() => {
@@ -91,6 +96,86 @@ const VirtualOptions = () => {
         };
         fetchOptions();
     }, [productId]);
+
+    useEffect(() => {
+        if (!productId) {
+            setIsLoading(false);
+            return;
+        }
+        const fetchProductInfo = async () => {
+            try {
+                const res = await fetch(`/api/products/${productId}`);
+                const data = await res.json();
+                if (data.success) {
+                    setProductTitle(data.title);
+                    setProductHandle(data.handle);
+                }
+            } catch (err) {
+                console.error('Failed to fetch product info', err);
+            }
+        };
+        fetchProductInfo();
+
+        const fetchOptions = async () => {
+            try {
+                const res = await fetch(`/api/virtual-options/${productId}`);
+                const data = await res.json();
+                if (data.success && data.options && data.options.length) {
+                    setVirtualOptions(data.options);
+                } else {
+                    setVirtualOptions([]);
+                }
+            } catch (err) {
+                console.error(err);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchOptions();
+    }, [productId]);
+
+    useEffect(() => {
+        // Fetch shop domain
+        const fetchShopDomain = async () => {
+            try {
+                const res = await fetch('/api/shop/domain');
+                const data = await res.json();
+                if (data.success) {
+                    setShopDomain(data.domain);
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        };
+        fetchShopDomain();
+    }, []);
+
+
+    const handleViewInStore = () => {
+        if (productHandle && shopDomain) {
+            window.open(`https://${shopDomain}/products/${productHandle}`, '_blank');
+        }
+    };
+
+    const handleDeleteProduct = async () => {
+        if (window.confirm('Are you sure you want to delete ALL virtual options for this product? This action cannot be undone.')) {
+            try {
+                const res = await fetch(`/api/product/${productId}`, {
+                    method: 'DELETE'
+                });
+                const data = await res.json();
+                if (data.success) {
+                    toast.success('Product options deleted successfully');
+                    // Redirect to home page
+                    navigate('/');
+                } else {
+                    toast.error(data.error || 'Failed to delete');
+                }
+            } catch (err) {
+                toast.error('An error occurred');
+            }
+        }
+    };
 
     // Form state for new/edit option
     const [newOption, setNewOption] = useState({
@@ -925,8 +1010,22 @@ const VirtualOptions = () => {
         <div className="min-h-screen bg-gray-100 p-6 font-sans">
             <div className="max-w-4xl mx-auto">
                 {/* Header */}
-                <div className="mb-6">
-                    <p className="text-sm text-gray-500">Home / bracelet box</p>
+                <div className="mb-6 flex justify-between items-center">
+                    <p className="text-sm text-gray-500">{`Home / ${productTitle || productId || '...'}`}</p>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={handleViewInStore}
+                            className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition cursor-pointer"
+                        >
+                            View in Store
+                        </button>
+                        <button
+                            onClick={handleDeleteProduct}
+                            className="px-3 py-1.5 bg-red-600 text-white text-sm rounded-md hover:bg-red-700 transition cursor-pointer"
+                        >
+                            Delete
+                        </button>
+                    </div>
                 </div>
 
                 {/* Action Cards */}

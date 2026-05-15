@@ -1,18 +1,29 @@
 <div id="variance-product-options" class="variance-product-options"></div>
 
 <script>
-function buildFieldName(option) {
-  var base = option.title || option.id || option.optionId || 'option';
-  base = base.toString().trim().toLowerCase().replace(/[^a-z0-9]+/g, '_');
-  if (!base) base = 'option';
-  return base;
-}
-
-window.renderVariantOptions = function(options) {
-  var mountNode = document.getElementById('variance-product-options');
-  if (!mountNode || !Array.isArray(options) || options.length === 0) {
-    return;
+  function buildFieldName(option) {
+    var base = option.title || option.id || 'option';
+    base = base
+      .toString()
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_');
+    if (!base) base = 'option';
+    return base;
   }
+
+  function validateMultiselect(optionId, selectedValues, rule, ruleValue) {
+    if (!rule || rule === 'no_restriction') return true;
+    var count = selectedValues.length;
+    if (rule === 'at_least') return count >= ruleValue;
+    if (rule === 'at_most') return count <= ruleValue;
+    if (rule === 'exactly') return count === ruleValue;
+    return true;
+  }
+
+window.renderVariantOptions = function(options, productId) {
+  var mountNode = document.getElementById('variance-product-options');
+  if (!mountNode || !Array.isArray(options) || options.length === 0) return;
 
   mountNode.innerHTML = '';
 
@@ -20,181 +31,400 @@ window.renderVariantOptions = function(options) {
     var optionType = option.type || 'unknown';
     var fieldName = buildFieldName(option);
     var wrapper = document.createElement('div');
-    wrapper.className = 'option-wrapper option-' + optionType + '-wrapper';
-    wrapper.id = 'option-' + optionType + '-wrapper-' + index;
+    wrapper.className = 'option-wrapper';
+    wrapper.setAttribute('data-option-id', option.id);
     wrapper.setAttribute('data-option-type', optionType);
+    wrapper.setAttribute('data-required', option.required ? 'true' : 'false');
+    if (option.multiselect) wrapper.setAttribute('data-multiselect', 'true');
+    if (option.multiselectRule) wrapper.setAttribute('data-rule', option.multiselectRule);
+    if (option.multiselectValue) wrapper.setAttribute('data-rule-value', option.multiselectValue);
 
-    var title = document.createElement('div');
-    title.className = 'option-title option-' + optionType + '-title';
-    title.textContent = option.title || '';
-    wrapper.appendChild(title);
+    // Title with required asterisk
+    var titleDiv = document.createElement('div');
+    titleDiv.className = 'option-title';
+    titleDiv.innerHTML = option.title || '';
+    if (option.required) {
+      var star = document.createElement('span');
+      star.className = 'required-star';
+      star.textContent = ' *';
+      titleDiv.appendChild(star);
+    }
+    wrapper.appendChild(titleDiv);
 
-    var content = document.createElement('div');
-    content.className = 'option-content option-' + optionType + '-content';
+    var contentDiv = document.createElement('div');
+    contentDiv.className = 'option-content';
 
-    switch (optionType) {
-      case 'dropdown':
-        var select = document.createElement('select');
-        select.name = fieldName + '_option';
-        select.className = 'option-dropdown-select';
+    // Store selected values
+    var selectedValues = [];
 
-        if (Array.isArray(option.values)) {
-          option.values.forEach(function(value) {
-            var optionElement = document.createElement('option');
-            optionElement.value = value;
-            optionElement.textContent = value;
-            select.appendChild(optionElement);
-          });
-        }
+    // Hidden input
+    var hiddenInput = document.createElement('input');
+    hiddenInput.type = 'hidden';
+    hiddenInput.name = fieldName + (option.multiselect ? '[]' : '');
+    hiddenInput.className = 'option-value-input';
+    contentDiv.appendChild(hiddenInput);
 
-        content.appendChild(select);
-        break;
-
-      case 'buttons':
-        var hiddenInput = document.createElement('input');
-        hiddenInput.type = 'hidden';
-        hiddenInput.name = fieldName + '_option';
-        hiddenInput.value = '';
-
-        var buttonGroup = document.createElement('div');
-        buttonGroup.className = 'option-buttons-group';
-
-        if (Array.isArray(option.values)) {
-          option.values.forEach(function(value) {
-            var button = document.createElement('button');
-            button.type = 'button';
-            button.className = 'option-button';
-            button.textContent = value;
-
-            button.addEventListener('click', function() {
-              hiddenInput.value = value;
-              var activeButtons = buttonGroup.querySelectorAll('.option-button.active');
-              activeButtons.forEach(function(active) {
-                active.classList.remove('active');
-              });
-              button.classList.add('active');
-            });
-
-            buttonGroup.appendChild(button);
-          });
-        }
-
-        content.appendChild(hiddenInput);
-        content.appendChild(buttonGroup);
-        break;
-
-      case 'color_swatches':
-        content.innerHTML = '<div class="option-color-swatches-placeholder">Color swatches placeholder</div>';
-        break;
-
-      case 'image_swatches':
-        content.innerHTML = '<div class="option-image-swatches-placeholder">Image swatches placeholder</div>';
-        break;
-
-      case 'text':
-        var textInput = document.createElement('input');
-        textInput.type = 'text';
-        textInput.name = fieldName + '_text';
-        textInput.className = 'option-text-input';
-        content.appendChild(textInput);
-        break;
-
-      case 'longText':
-        var textarea = document.createElement('textarea');
-        textarea.name = fieldName + '_long_text';
-        textarea.className = 'option-long-text-input';
-        content.appendChild(textarea);
-        break;
-
-      case 'fileUpload':
-        var fileInput = document.createElement('input');
-        fileInput.type = 'file';
-        fileInput.name = fieldName + '_file';
-        fileInput.className = 'option-file-input';
-        content.appendChild(fileInput);
-        break;
-
-      case 'radio':
-        var radioGroup = document.createElement('div');
-        radioGroup.className = 'option-radio-group';
-
-        if (Array.isArray(option.values)) {
-          option.values.forEach(function(value, valueIndex) {
-            var itemWrapper = document.createElement('label');
-            itemWrapper.className = 'option-radio-label';
-
-            var radio = document.createElement('input');
-            radio.type = 'radio';
-            radio.name = fieldName + '_option';
-            radio.value = value;
-            radio.className = 'option-radio-input';
-            radio.id = fieldName + '_radio_' + valueIndex;
-
-            var labelText = document.createElement('span');
-            labelText.textContent = value;
-
-            itemWrapper.appendChild(radio);
-            itemWrapper.appendChild(labelText);
-            radioGroup.appendChild(itemWrapper);
-          });
-        }
-
-        content.appendChild(radioGroup);
-        break;
-
-      case 'checkboxes':
-        var checkboxGroup = document.createElement('div');
-        checkboxGroup.className = 'option-checkboxes-group';
-
-        if (Array.isArray(option.values)) {
-          option.values.forEach(function(value, valueIndex) {
-            var itemWrapper = document.createElement('label');
-            itemWrapper.className = 'option-checkbox-label';
-
-            var checkbox = document.createElement('input');
-            checkbox.type = 'checkbox';
-            checkbox.name = fieldName + '[]';
-            checkbox.value = value;
-            checkbox.className = 'option-checkbox-input';
-            checkbox.id = fieldName + '_checkbox_' + valueIndex;
-
-            var labelText = document.createElement('span');
-            labelText.textContent = value;
-
-            itemWrapper.appendChild(checkbox);
-            itemWrapper.appendChild(labelText);
-            checkboxGroup.appendChild(itemWrapper);
-          });
-        }
-
-        content.appendChild(checkboxGroup);
-        break;
-
-      case 'grid':
-        content.innerHTML = '<div class="option-grid-placeholder">Grid placeholder</div>';
-        break;
-
-      case 'instructions':
-        var instructionsText = document.createElement('p');
-        instructionsText.className = 'option-instructions-text';
-        instructionsText.textContent = option.htmlContent || '';
-        content.appendChild(instructionsText);
-        break;
-
-      default:
-        content.innerHTML = '<div class="option-default-placeholder">Unsupported option type</div>';
-        break;
+    function showError(msg) {
+      var errDiv = wrapper.querySelector('.option-error');
+      if (!errDiv) {
+        errDiv = document.createElement('div');
+        errDiv.className = 'option-error';
+        wrapper.appendChild(errDiv);
+      }
+      errDiv.textContent = msg;
+      errDiv.style.display = 'block';
+      wrapper.classList.add('has-error');
     }
 
-    wrapper.appendChild(content);
+    function clearError() {
+      var errDiv = wrapper.querySelector('.option-error');
+      if (errDiv) errDiv.style.display = 'none';
+      wrapper.classList.remove('has-error');
+    }
+
+    function updateHidden() {
+      if (option.multiselect) {
+        hiddenInput.value = JSON.stringify(selectedValues);
+      } else {
+        hiddenInput.value = selectedValues[0] || '';
+      }
+      clearError();
+    }
+
+    // === DROPDOWN ===
+    if (optionType === 'dropdown') {
+      var select = document.createElement('select');
+      select.className = 'option-dropdown';
+      var emptyOption = document.createElement('option');
+      emptyOption.value = '';
+      emptyOption.textContent = 'Choose one';
+      select.appendChild(emptyOption);
+      if (Array.isArray(option.values)) {
+        option.values.forEach(function(val) {
+          var opt = document.createElement('option');
+          opt.value = val;
+          opt.textContent = val;
+          select.appendChild(opt);
+        });
+      }
+      select.addEventListener('change', function(e) {
+        selectedValues = e.target.value ? [e.target.value] : [];
+        updateHidden();
+      });
+      contentDiv.appendChild(select);
+      if (option.preselectValue) {
+        select.value = option.preselectValue;
+        selectedValues = [option.preselectValue];
+        updateHidden();
+      }
+    }
+
+    // === BUTTONS ===
+    else if (optionType === 'buttons') {
+      var btnGroup = document.createElement('div');
+      btnGroup.className = 'option-buttons-group';
+      if (Array.isArray(option.values)) {
+        option.values.forEach(function(val) {
+          var btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'option-button';
+          btn.textContent = val;
+          btn.addEventListener('click', function() {
+            if (option.multiselect) {
+              var idx = selectedValues.indexOf(val);
+              if (idx === -1) selectedValues.push(val);
+              else selectedValues.splice(idx, 1);
+              btn.classList.toggle('active');
+            } else {
+              selectedValues = [val];
+              btnGroup.querySelectorAll('.option-button').forEach(function(b) { b.classList.remove('active'); });
+              btn.classList.add('active');
+            }
+            updateHidden();
+          });
+          btnGroup.appendChild(btn);
+        });
+      }
+      contentDiv.appendChild(btnGroup);
+      if (option.preselectValue && !option.multiselect) {
+        var preselectBtn = Array.from(btnGroup.querySelectorAll('.option-button')).find(function(b) { return b.textContent === option.preselectValue; });
+        if (preselectBtn) preselectBtn.click();
+      } else if (option.multiselect && option.preselectValues && Array.isArray(option.preselectValues)) {
+        option.preselectValues.forEach(function(val) {
+          var btn = Array.from(btnGroup.querySelectorAll('.option-button')).find(function(b) { return b.textContent === val; });
+          if (btn) btn.click();
+        });
+      }
+    }
+
+    // === COLOR SWATCHES ===
+    else if (optionType === 'colorSwatches') {
+      var swatchGroup = document.createElement('div');
+      swatchGroup.className = 'option-color-swatches';
+      if (Array.isArray(option.colorValues)) {
+        option.colorValues.forEach(function(item) {
+          var swatch = document.createElement('button');
+          swatch.type = 'button';
+          swatch.className = 'color-swatch';
+          swatch.style.backgroundColor = item.color;
+          swatch.setAttribute('data-label', item.label);
+          var labelSpan = document.createElement('span');
+          labelSpan.className = 'swatch-label';
+          labelSpan.textContent = item.label;
+          swatch.appendChild(labelSpan);
+          swatch.addEventListener('click', function() {
+            if (option.multiselect) {
+              var idx = selectedValues.indexOf(item.label);
+              if (idx === -1) selectedValues.push(item.label);
+              else selectedValues.splice(idx, 1);
+              swatch.classList.toggle('active');
+            } else {
+              selectedValues = [item.label];
+              swatchGroup.querySelectorAll('.color-swatch').forEach(function(s) { s.classList.remove('active'); });
+              swatch.classList.add('active');
+            }
+            updateHidden();
+          });
+          swatchGroup.appendChild(swatch);
+        });
+      }
+      contentDiv.appendChild(swatchGroup);
+      if (option.preselectValue && !option.multiselect) {
+        var preSwatch = Array.from(swatchGroup.querySelectorAll('.color-swatch')).find(function(s) { return s.getAttribute('data-label') === option.preselectValue; });
+        if (preSwatch) preSwatch.click();
+      } else if (option.multiselect && option.preselectValues) {
+        option.preselectValues.forEach(function(val) {
+          var sw = Array.from(swatchGroup.querySelectorAll('.color-swatch')).find(function(s) { return s.getAttribute('data-label') === val; });
+          if (sw) sw.click();
+        });
+      }
+    }
+
+    // === IMAGE SWATCHES ===
+    else if (optionType === 'imageSwatches') {
+      var imgGroup = document.createElement('div');
+      imgGroup.className = 'option-image-swatches';
+      if (Array.isArray(option.imageValues)) {
+        option.imageValues.forEach(function(item) {
+          var imgSwatch = document.createElement('button');
+          imgSwatch.type = 'button';
+          imgSwatch.className = 'image-swatch';
+          var img = document.createElement('img');
+          img.src = item.imageUrl;
+          img.alt = item.label;
+          var labelSpan = document.createElement('span');
+          labelSpan.textContent = item.label;
+          imgSwatch.appendChild(img);
+          imgSwatch.appendChild(labelSpan);
+          imgSwatch.setAttribute('data-label', item.label);
+          imgSwatch.addEventListener('click', function() {
+            if (option.multiselect) {
+              var idx = selectedValues.indexOf(item.label);
+              if (idx === -1) selectedValues.push(item.label);
+              else selectedValues.splice(idx, 1);
+              imgSwatch.classList.toggle('active');
+            } else {
+              selectedValues = [item.label];
+              imgGroup.querySelectorAll('.image-swatch').forEach(function(s) { s.classList.remove('active'); });
+              imgSwatch.classList.add('active');
+            }
+            updateHidden();
+          });
+          imgGroup.appendChild(imgSwatch);
+        });
+      }
+      contentDiv.appendChild(imgGroup);
+      if (option.preselectValue && !option.multiselect) {
+        var preImg = Array.from(imgGroup.querySelectorAll('.image-swatch')).find(function(s) { return s.getAttribute('data-label') === option.preselectValue; });
+        if (preImg) preImg.click();
+      } else if (option.multiselect && option.preselectValues) {
+        option.preselectValues.forEach(function(val) {
+          var im = Array.from(imgGroup.querySelectorAll('.image-swatch')).find(function(s) { return s.getAttribute('data-label') === val; });
+          if (im) im.click();
+        });
+      }
+    }
+
+    // === TEXT ===
+    else if (optionType === 'text') {
+      var textInput = document.createElement('input');
+      textInput.type = option.inputType || 'text';
+      textInput.className = 'option-text';
+      if (option.maxLength) textInput.maxLength = option.maxLength;
+      textInput.addEventListener('input', function(e) {
+        selectedValues = [e.target.value];
+        updateHidden();
+      });
+      contentDiv.appendChild(textInput);
+      if (option.preselectValue) textInput.value = option.preselectValue;
+    }
+
+    // === LONG TEXT ===
+    else if (optionType === 'longText') {
+      var textarea = document.createElement('textarea');
+      textarea.className = 'option-long-text';
+      if (option.maxLength) textarea.maxLength = option.maxLength;
+      textarea.addEventListener('input', function(e) {
+        selectedValues = [e.target.value];
+        updateHidden();
+      });
+      contentDiv.appendChild(textarea);
+      if (option.preselectValue) textarea.value = option.preselectValue;
+    }
+
+    // === FILE UPLOAD ===
+    else if (optionType === 'fileUpload') {
+      var fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.className = 'option-file';
+      fileInput.addEventListener('change', function(e) {
+        var file = e.target.files[0];
+        selectedValues = file ? [file.name] : [];
+        updateHidden();
+        var fileData = new FormData();
+        fileData.append('file', file);
+        fileInput.fileData = fileData;
+      });
+      contentDiv.appendChild(fileInput);
+    }
+
+    // === RADIO ===
+    else if (optionType === 'radio') {
+      var radioGroup = document.createElement('div');
+      radioGroup.className = 'option-radio-group';
+      if (Array.isArray(option.values)) {
+        option.values.forEach(function(val) {
+          var label = document.createElement('label');
+          label.className = 'option-radio-label';
+          var radio = document.createElement('input');
+          radio.type = 'radio';
+          radio.name = fieldName;
+          radio.value = val;
+          radio.addEventListener('change', function() {
+            if (radio.checked) {
+              selectedValues = [val];
+              updateHidden();
+            }
+          });
+          var span = document.createElement('span');
+          span.textContent = val;
+          label.appendChild(radio);
+          label.appendChild(span);
+          radioGroup.appendChild(label);
+        });
+      }
+      contentDiv.appendChild(radioGroup);
+      if (option.preselectValue) {
+        var preRadio = radioGroup.querySelector('input[value="' + option.preselectValue + '"]');
+        if (preRadio) preRadio.checked = true;
+        selectedValues = [option.preselectValue];
+        updateHidden();
+      }
+    }
+
+    // === CHECKBOXES ===
+    else if (optionType === 'checkboxes') {
+      var checkGroup = document.createElement('div');
+      checkGroup.className = 'option-checkboxes-group';
+      if (Array.isArray(option.values)) {
+        option.values.forEach(function(val) {
+          var label = document.createElement('label');
+          label.className = 'option-checkbox-label';
+          var cb = document.createElement('input');
+          cb.type = 'checkbox';
+          cb.value = val;
+          cb.addEventListener('change', function() {
+            if (cb.checked) selectedValues.push(val);
+            else selectedValues = selectedValues.filter(function(v) { return v !== val; });
+            updateHidden();
+          });
+          var span = document.createElement('span');
+          span.textContent = val;
+          label.appendChild(cb);
+          label.appendChild(span);
+          checkGroup.appendChild(label);
+        });
+      }
+      contentDiv.appendChild(checkGroup);
+      if (option.preselectValues && Array.isArray(option.preselectValues)) {
+        option.preselectValues.forEach(function(val) {
+          var cb = checkGroup.querySelector('input[value="' + val + '"]');
+          if (cb) {
+            cb.checked = true;
+            selectedValues.push(val);
+          }
+        });
+        updateHidden();
+      }
+    }
+
+    // === GRID ===
+    else if (optionType === 'grid') {
+      var gridTable = document.createElement('table');
+      gridTable.className = 'option-grid';
+      var thead = document.createElement('thead');
+      var headerRow = document.createElement('tr');
+      var emptyTh = document.createElement('th');
+      emptyTh.textContent = '';
+      headerRow.appendChild(emptyTh);
+      (option.xAxisKeys || []).forEach(function(key) {
+        var th = document.createElement('th');
+        th.textContent = key;
+        headerRow.appendChild(th);
+      });
+      thead.appendChild(headerRow);
+      gridTable.appendChild(thead);
+      var tbody = document.createElement('tbody');
+      (option.yAxisKeys || []).forEach(function(rowKey) {
+        var tr = document.createElement('tr');
+        var tdLabel = document.createElement('td');
+        tdLabel.textContent = rowKey;
+        tr.appendChild(tdLabel);
+        (option.xAxisKeys || []).forEach(function(colKey) {
+          var td = document.createElement('td');
+          var radio = document.createElement('input');
+          radio.type = 'radio';
+          radio.name = fieldName + '_' + rowKey;
+          radio.value = rowKey + ':' + colKey;
+          radio.addEventListener('change', function() {
+            if (radio.checked) {
+              selectedValues = [radio.value];
+              updateHidden();
+            }
+          });
+          td.appendChild(radio);
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+      gridTable.appendChild(tbody);
+      contentDiv.appendChild(gridTable);
+      if (option.preselectValue) {
+        var preRadio = gridTable.querySelector('input[value="' + option.preselectValue + '"]');
+        if (preRadio) preRadio.checked = true;
+        selectedValues = [option.preselectValue];
+        updateHidden();
+      }
+    }
+
+    // === INSTRUCTIONS ===
+    else if (optionType === 'instructions') {
+      var instrDiv = document.createElement('div');
+      instrDiv.className = 'option-instructions';
+      instrDiv.innerHTML = option.htmlContent || '';
+      contentDiv.appendChild(instrDiv);
+    }
+
+    wrapper.appendChild(contentDiv);
     mountNode.appendChild(wrapper);
+    updateHidden();
   });
 };
 </script>
 
 {% schema %}
 {
-  "name": "variance app extension",
+  "name": "Variance App Options",
   "target": "section",
   "stylesheet": "style.css",
   "javascript": "scripts.js"
